@@ -101,8 +101,11 @@ Transporte por app · Transporte · Alimentação · Lazer · Saúde · Presente
 ## Cartão: o mês é quando o dinheiro sai
 Uma regra só para o extrato e para o saldo previsto: a compra no cartão entra no mês em que a fatura é paga.
 - **Fatura ainda não paga:** mês do **vencimento**. Uma compra de 20/11 numa fatura que vence em 15/12 entra em dezembro.
-- **Fatura paga antes do vencimento:** mês do **pagamento**. Se a fatura de 15/12 for paga em 30/11, as compras dela entram em novembro.
-- A fatura vem de `billId` (compra liquidada) ou de `billForecastDate` (compra pendente). O vencimento e os pagamentos vêm de `/bills` (`dueDate`, `payments`).
+- **Fatura paga:** mês do **pagamento**, antes ou depois do vencimento. Se a fatura de 15/12 for paga em 30/11, as compras dela entram em novembro; se for paga em 05/01, em janeiro.
+- **Quando a fatura foi quitada:** a lista `payments` de `/bills` vem fora de ordem e mistura pagamentos de outras faturas. A fatura está quitada no pagamento que, somado aos anteriores em ordem de data, cobre o total.
+- A fatura vem de `billId` (compra liquidada) ou de `billForecastDate` (compra pendente). Fatura ainda não fechada: vencimento previsto no **dia mais frequente** dos vencimentos anteriores (um vencimento adiado por feriado não conta).
+- **Compra no cartão lançada à mão**, antes de o banco sincronizar: vai para a fatura aberta, a do mês seguinte à última fatura fechada.
+- Implementado em `src/domain/card.ts` (`cashOutDate`), com os casos em `card.test.ts`.
 - **Parcelada:** cada parcela segue a fatura em que cai. Parcela antecipada vai para a fatura que a recebeu.
 - A data da compra continua visível no lançamento; só não decide o mês.
 
