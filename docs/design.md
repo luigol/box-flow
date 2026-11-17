@@ -116,7 +116,7 @@ Transporte por app · Transporte · Alimentação · Lazer · Saúde · Presente
 - **Regras valem para todo o histórico** (são aplicadas na hora de mostrar), menos o que foi marcado à mão.
 - **Texto da regra:** procurado na descrição, na descrição original e no estabelecimento; maiúsculas, acentos e espaços não importam.
 - **Transferência** é uma categoria especial: não entra nos totais do mês.
-- **Regras automáticas de transferência** (pela categoria que a Pluggy dá): `Credit card payment`, `Same person transfer`, `Investments`, `Fixed income`; e, no cartão, entrada marcada como `Transfers` ou `Transfer - PIX` (pagamento da fatura). Ficam de fora: saída no cartão marcada como `Transfers` (Pix no crédito, que é empréstimo), rendimentos e estornos.
+- **Regras automáticas de transferência** (pela categoria que a Pluggy dá): `Credit card payment`, `Same person transfer`, `Investments`, `Fixed income`; no cartão, entrada marcada como `Transfers` ou `Transfer - PIX` (pagamento da fatura); e o texto "Pagamento de fatura" saindo da conta (há banco que manda só como `Transfers`). Ficam de fora: saída no cartão marcada como `Transfers` (Pix no crédito, que é empréstimo), rendimentos e estornos.
 - **Trocar a categoria** de um lançamento oferece criar uma regra com um trecho do texto ("aplicar a todos parecidos").
 - **Totais do mês:** entradas, saídas e resultado, sem transferências; o extrato mostra quantos estão sem categoria.
 - Implementado em `src/domain/category.ts` (`classify`) e `src/domain/statement.ts` (`monthTotals`).

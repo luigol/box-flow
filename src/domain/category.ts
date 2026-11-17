@@ -76,6 +76,14 @@ export const DEFAULT_RULES: Rule[] = [
     categoryId: TRANSFER,
   },
   {
+    // Alguns bancos mandam o pagamento da fatura só como "Transfers".
+    id: 'default:bill-payment-text',
+    source: 'default',
+    text: 'Pagamento de fatura',
+    direction: 'out',
+    categoryId: TRANSFER,
+  },
+  {
     id: 'default:card-payment-in',
     source: 'default',
     accountKind: 'credit_card',

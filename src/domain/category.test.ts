@@ -94,6 +94,11 @@ describe('regras automáticas de transferência (já vêm com o app)', () => {
     expect(classify(t, account, { rules: DEFAULT_RULES, manual: noManual })).toBe(TRANSFER)
   })
 
+  it('"Pagamento de fatura" saindo da conta, mesmo que a Pluggy marque só como Transfers → transferência', () => {
+    const t = tx({ description: 'Pagamento de fatura', bankCategory: 'Transfers', amount: OUT })
+    expect(classify(t, checking, { rules: DEFAULT_RULES, manual: noManual })).toBe(TRANSFER)
+  })
+
   it.each([
     ['saída no cartão marcada como transferência (Pix no crédito = empréstimo)', card, 'Transfers', OUT],
     ['rendimento', checking, 'Proceeds interests and dividends', IN],
