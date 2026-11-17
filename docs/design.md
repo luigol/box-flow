@@ -63,21 +63,50 @@ Pagar uma pessoa ou mover dinheiro entre contas é **transferência**, não gast
 - `status`: `previsto` ou `realizado`.
 - `origem`: banco (id da transação na Pluggy) ou manual.
 - **Categoria**, **etiquetas** (para quem ou para quê: uma pessoa, uma viagem) e **descrição livre**, opcional, escrita pelo usuário.
-- Dois eixos de classificação:
-  - **Valor**: `fixo` | `variável`.
-  - **Repetição**: `avulso` | `parcelado` (N vezes, tem fim) | `recorrente` (sem fim até cancelar; frequência mensal, anual…).
+- Dois eixos de classificação, **tirados do compromisso** (não se marcam lançamento a lançamento):
+  - **Repetição**: ligado a um recorrente → `recorrente`; a um parcelado → `parcelado`; sem compromisso → `avulso`.
+  - **Valor**: `fixo` | `variável`, guardado no compromisso.
 
-### Compromisso
-Parcelados e recorrentes são compromissos que **geram lançamentos previstos**:
-- parcelado: registra uma vez (ou vem do banco) e gera as N parcelas;
-- recorrente: a regra é registrada uma vez ("todo dia 15") e gera um lançamento por período até ser encerrada;
-- receita variável (salário): recorrente com **valor estimado**; quando o dinheiro cai, o valor real substitui a estimativa e a diferença fica visível.
+### Compromisso (grill de 17/11/2026)
+Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
+
+**Tipos**
+- **Recorrente** (mensal ou anual), de saída ou de entrada (ex.: salário): categoria, valor, dia, conta e, opcional, o texto do banco que o identifica.
+- **Parcelado com pessoa**: pessoa, motivo e categoria, valor da parcela, total de parcelas, quantas já foram pagas e dia do mês. Cada parcela paga é gasto na categoria (o mês é quando o dinheiro sai); "quanto devo a cada pessoa" é a soma das parcelas que faltam.
+- **Parcelado do cartão**: reconhecido sozinho a partir do banco (descrição sem "NN/NN" + total de parcelas + data da compra), só para consulta, com andamento e quanto falta. Não gera previstos: o banco já manda as parcelas futuras.
+
+**Valor previsto**
+- Por padrão, o **valor digitado pelo usuário**; opção de usar a **média dos últimos 3 meses realizados** quando não se sabe.
+- Editar ou encerrar vale só para os previstos futuros; o histórico não muda.
+
+**Quando cai**
+- No cartão: dia da cobrança + cartão → mês em que a fatura é paga (mesma regra das compras). Na conta ou boleto: o dia informado. Dia que o mês não tem → último dia do mês.
+- Previstos até 12 meses à frente ou até a última parcela.
+- **Primeiro previsto** de um recorrente novo: se o lançamento deste mês foi vinculado, o mês nasce realizado; se o dia já passou sem lançamento, começa no mês seguinte; se o dia ainda não chegou, começa neste mês.
+
+**Previsto → realizado** (revê "o usuário sempre confirma", ver Conciliação)
+- Lançamento com o **texto do banco** do compromisso, até **10 dias** antes ou depois da data prevista, realiza o previsto **sozinho**. O valor não precisa bater; a diferença aparece. Dá para desfazer.
+- **Pix para pessoa** (o mesmo Pix pode pagar várias coisas): o app **sugere** e o usuário **confirma**, podendo dividir.
+- Um previsto pode juntar **vários lançamentos** (salário que chega em vários Pix: vale a soma no mês) e um lançamento pode realizar **vários previstos**.
+- Compra **pendente** no cartão já conta como realizada.
+- Data passou e nada chegou: **atrasado** (em destaque) até chegar ou até o usuário marcar "não aconteceu neste mês".
+
+**Classificação**: lançamento ligado a um compromisso recebe a **categoria do compromisso**; vence as regras e perde só para a escolha à mão.
+
+**Telas**
+- **Extrato = extrato + previsão**: os previstos aparecem no mês com visual próprio; os totais separam **realizado** e **previsto**. Tocar num previsto: "Vincular ao extrato", "Não aconteceu neste mês", "Editar compromisso".
+- **Aba Compromissos** (lista, sem troca de mês): Recorrentes, Parcelados, Receitas e **Sugestões** (mesmo texto do banco em 3 ou mais dos últimos 6 meses, valores até 25% diferentes; "Criar" ou "Ignorar"; Pix para pessoa entra já marcado como "você confirma cada mês").
+- **Criar**: formulário, com ou sem **"Vincular ao extrato"** (escolher o lançamento equivalente: o texto dele vira a assinatura do compromisso, os próximos são reconhecidos e os antigos são ligados como histórico), ou a partir de um lançamento ("Vincular a um compromisso"). Compromisso pode ser editado.
+
+**Dados**: vínculos guardados à parte, como as classificações à mão (ligar um lançamento antigo não altera o período fechado). Compromissos vão no backup trancado.
+
+Fora desta etapa: saldo pré e pós-pago (usa os compromissos) e contas de pessoa.
 
 ### Regra de classificação
 Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex.: `DL*99 RIDE` → Transporte por app. As regras iniciais podem ser importadas de um arquivo (o app precisa de **importar regras**).
 
 ### Conciliação
-- O app **sugere** casar uma transação do banco com lançamentos previstos ou manuais; **o usuário sempre confirma**. Casar só por valor + data gera pares falsos.
+- O app **sugere** casar uma transação do banco com lançamentos previstos ou manuais; **o usuário confirma**. Casar só por valor + data gera pares falsos. Exceção (17/11/2026): previsto de compromisso com texto do banco de empresa é realizado sozinho (ver Compromisso).
 - Um lançamento do banco pode corresponder a **vários** lançamentos manuais (ex.: três pagamentos combinados que saíram num Pix só).
 - Transferências internas não são gasto: pagamento de fatura, aplicação e resgate de cofrinho, transferência entre contas próprias.
 
