@@ -100,6 +100,14 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 
 **Dados**: vínculos guardados à parte, como as classificações à mão (ligar um lançamento antigo não altera o período fechado). Compromissos vão no backup trancado.
 
+**Implementação** (`src/domain/commitment.ts`, `reconcile.ts`, `forecast.ts`):
+- Cada ocorrência tem uma chave (compromisso + mês da cobrança) e duas datas: a da cobrança (a janela de 10 dias conta a partir dela) e a do dinheiro (no cartão, o vencimento da fatura).
+- No cartão, o ciclo é aprendido das faturas guardadas (fechamento e vencimento mais frequentes): cobrança até 2 dias antes do fechamento entra na fatura que fecha naquele mês; depois, na seguinte.
+- O vínculo automático é calculado na hora (como as regras), não guardado. Guardados: vínculos confirmados, "desvincular" e "não aconteceu".
+- Um lançamento ligado a vários previstos conta, em cada um, o valor esperado.
+- "Pix para pessoa" (sugerido em vez de automático) vem marcado quando o outro lado do lançamento escolhido é pessoa: a tradução guarda só o **tipo** do documento (CPF → pessoa, CNPJ → empresa), nunca o número.
+- "Vincular ao extrato" liga também o histórico dos últimos 12 meses; meses antes do início só aparecem se tiveram pagamento.
+
 Fora desta etapa: saldo pré e pós-pago (usa os compromissos) e contas de pessoa.
 
 ### Regra de classificação

@@ -6,11 +6,13 @@ import { CategorySheet } from '../components/CategorySheet'
 import { CommitmentSheet } from '../components/CommitmentSheet'
 import { MonthHeader } from '../components/ScreenHeader'
 import { useClassification } from '../db/classification'
-import { useCommitments } from '../db/commitments'
+import { OccurrenceSheet } from '../components/OccurrenceSheet'
 import { db, loadPluggySettings } from '../db/instance'
+import { useReconciliation } from '../db/reconciliation'
 import { categoryName, classify, TRANSFER, type Category } from '../domain/category'
 import type { Commitment, Occurrence } from '../domain/commitment'
-import { forecastTotals, monthForecast } from '../domain/forecast'
+import { forecastFor, forecastTotals } from '../domain/forecast'
+import type { ReconciledOccurrence } from '../domain/reconcile'
 import { monthStatement, monthTotals, type StatementEntry } from '../domain/statement'
 import { formatDateTime, formatDay, formatMoney } from '../lib/format'
 import type { YearMonth } from '../lib/month'
@@ -23,7 +25,9 @@ interface StatementProps {
 }
 
 /** Item do extrato: lançamento do banco ou previsto de um compromisso. */
-type Item = { kind: 'tx'; date: string; entry: StatementEntry } | { kind: 'forecast'; date: string; occurrence: Occurrence; commitment: Commitment }
+type Item =
+  | { kind: 'tx'; date: string; entry: StatementEntry }
+  | { kind: 'forecast'; date: string; occurrence: ReconciledOccurrence; commitment: Commitment }
 
 export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps) {
   const { t } = useTranslation()
@@ -36,20 +40,22 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
     }),
     [],
   )
-  const commitments = useCommitments()
+  const reconciliation = useReconciliation()
+  const commitments = reconciliation?.commitments
   const classification = useClassification()
   const [editing, setEditing] = useState<StatementEntry | null>(null)
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null)
+  const [creatingFrom, setCreatingFrom] = useState<{ entry: StatementEntry; categoryId?: string } | null>(null)
+  const [openOccurrence, setOpenOccurrence] = useState<{ occurrence: ReconciledOccurrence; commitment: Commitment } | null>(null)
 
   const entries = useMemo(() => (data ? monthStatement(month, data) : []), [data, month])
-  const forecast = useMemo(
-    () => (data && commitments ? monthForecast(month, { commitments, bills: data.bills, today: new Date() }) : []),
-    [data, commitments, month],
+  const forecast = useMemo(() => (reconciliation ? forecastFor(month, reconciliation.occurrences) : []), [reconciliation, month])
+  // Classificação: à mão > compromisso ligado > regras (decisão Q19).
+  const ctx = useMemo(
+    () => classification && { ...classification.ctx, commitmentCategory: reconciliation?.commitmentCategory },
+    [classification, reconciliation],
   )
-  const categoryOf = useMemo(() => {
-    const ctx = classification?.ctx
-    return (entry: StatementEntry) => (ctx ? classify(entry.tx, entry.account, ctx) : undefined)
-  }, [classification])
+  const categoryOf = useMemo(() => (entry: StatementEntry) => (ctx ? classify(entry.tx, entry.account, ctx) : undefined), [ctx])
 
   const items = useMemo(() => {
     const byId = new Map((commitments ?? []).map((c) => [c.id, c]))
@@ -85,7 +91,7 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
           categories={classification?.categories ?? []}
           categoryOf={categoryOf}
           onSelect={setEditing}
-          onSelectForecast={setEditingCommitment}
+          onSelectForecast={(occurrence, commitment) => setOpenOccurrence({ occurrence, commitment })}
         />
       </>
     )
@@ -96,8 +102,33 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
       <MonthHeader eyebrow={t('tabs.statement')} month={month} onChange={onMonthChange} />
       {settings && <SyncStatus />}
       {body}
-      {editing && classification && (
-        <CategorySheet entry={editing} categories={classification.categories} ctx={classification.ctx} onClose={() => setEditing(null)} />
+      {editing && classification && ctx && (
+        <CategorySheet
+          entry={editing}
+          categories={classification.categories}
+          ctx={ctx}
+          links={reconciliation?.byTx.get(editing.tx.id) ?? []}
+          commitments={commitments ?? []}
+          onCreateCommitment={(categoryId) => {
+            setCreatingFrom({ entry: editing, ...(categoryId ? { categoryId } : {}) })
+            setEditing(null)
+          }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {creatingFrom && (
+        <CommitmentSheet fromTx={creatingFrom.entry.tx} fromCategoryId={creatingFrom.categoryId} onClose={() => setCreatingFrom(null)} />
+      )}
+      {openOccurrence && (
+        <OccurrenceSheet
+          occurrence={openOccurrence.occurrence}
+          commitment={openOccurrence.commitment}
+          onEdit={() => {
+            setEditingCommitment(openOccurrence.commitment)
+            setOpenOccurrence(null)
+          }}
+          onClose={() => setOpenOccurrence(null)}
+        />
       )}
       {editingCommitment && <CommitmentSheet commitment={editingCommitment} onClose={() => setEditingCommitment(null)} />}
     </>
@@ -184,7 +215,7 @@ interface DayGroupsProps {
   categories: Category[]
   categoryOf: (e: StatementEntry) => string | undefined
   onSelect: (entry: StatementEntry) => void
-  onSelectForecast: (commitment: Commitment) => void
+  onSelectForecast: (occurrence: ReconciledOccurrence, commitment: Commitment) => void
 }
 
 /** Lançamentos e previstos agrupados por dia, do mais recente para o mais antigo. */
@@ -212,7 +243,7 @@ function DayGroups({ items, categories, categoryOf, onSelect, onSelectForecast }
                     occurrence={item.occurrence}
                     commitment={item.commitment}
                     category={item.commitment.categoryId ? byId.get(item.commitment.categoryId) : undefined}
-                    onSelect={() => onSelectForecast(item.commitment)}
+                    onSelect={() => onSelectForecast(item.occurrence, item.commitment)}
                   />
                 )
               }
@@ -271,20 +302,22 @@ function EntryRow({ entry: { tx, account }, category, isTransfer, onSelect }: En
 }
 
 interface ForecastRowProps {
-  occurrence: Occurrence
+  occurrence: ReconciledOccurrence
   commitment: Commitment
   category: Category | undefined
   onSelect: () => void
 }
 
-/** Previsto: texto mais claro e a marca "previsto". */
+/** Previsto: texto mais claro e a marca "previsto" (ou "atrasado", em destaque; com sugestão, avisa). */
 function ForecastRow({ occurrence, commitment, category, onSelect }: ForecastRowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
+  const late = occurrence.status === 'late'
   const details = [
     category ? categoryName(category, locale) : null,
     commitment.kind === 'installment' ? commitment.person : null,
     occurrence.installment && `${occurrence.installment.number}/${occurrence.installment.total}`,
+    occurrence.suggestions.length > 0 ? t('link.suggestions') : null,
   ].filter(Boolean)
 
   return (
@@ -292,7 +325,11 @@ function ForecastRow({ occurrence, commitment, category, onSelect }: ForecastRow
       <div className="min-w-0 flex-1">
         <p className="truncate text-ink-2">{commitment.name}</p>
         <p className="truncate text-[13px] tracking-normal text-ink-2">
-          <span className="rounded-full border border-separator px-1.5 py-px text-[11px] uppercase">{t('statement.forecast')}</span>
+          <span
+            className={`rounded-full border px-1.5 py-px text-[11px] uppercase ${late ? 'border-warning text-warning' : 'border-separator'}`}
+          >
+            {late ? t('link.late') : t('statement.forecast')}
+          </span>
           {details.length > 0 && ` · ${details.join(' · ')}`}
         </p>
       </div>

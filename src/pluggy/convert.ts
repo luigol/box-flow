@@ -26,6 +26,8 @@ export function fromPluggyTransaction(raw: PluggyTransaction): BankTransaction {
   if (raw.category) tx.bankCategory = raw.category
   const merchant = raw.merchant?.businessName || raw.merchant?.name
   if (merchant) tx.merchant = merchant
+  const counterparty = counterpartyType(raw)
+  if (counterparty) tx.counterparty = counterparty
   // Compra no exterior: `amount` vem na moeda estrangeira e o valor em reais vem à parte.
   if (raw.amountInAccountCurrency != null) {
     tx.foreign = { currency: raw.currencyCode, amount: signedCents(raw.type, raw.amount) }
@@ -33,6 +35,21 @@ export function fromPluggyTransaction(raw: PluggyTransaction): BankTransaction {
   if (raw.creditCardMetadata) tx.card = cardDetails(raw.creditCardMetadata)
   return tx
 }
+
+/**
+ * Só o TIPO do documento do outro lado (quem recebeu, se saiu; quem pagou, se entrou).
+ * Serve para decidir se um compromisso é "Pix para pessoa" (sugerido) ou de empresa (automático).
+ */
+function counterpartyType(raw: PluggyTransaction): 'person' | 'company' | undefined {
+  const data = raw.paymentData as { payer?: Party; receiver?: Party } | null | undefined
+  const other = raw.type === 'DEBIT' ? data?.receiver : data?.payer
+  const type = other?.documentNumber?.type
+  if (type === 'CPF') return 'person'
+  if (type === 'CNPJ') return 'company'
+  return undefined
+}
+
+type Party = { documentNumber?: { type?: string } | null } | null
 
 function cardDetails(cc: PluggyCreditCardMetadata): CardDetails {
   const card: CardDetails = {}

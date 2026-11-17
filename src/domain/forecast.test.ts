@@ -25,12 +25,21 @@ describe('monthForecast: previstos que caem num mês', () => {
     ])
   })
 
-  it('previsto com data antes de hoje não aparece (até existir o vínculo com o banco)', () => {
-    const commitments = [recurring('antes', { day: 3 }), recurring('hoje', { day: 5 }), recurring('depois', { day: 20 })]
+  it('realizado sai da lista (o lançamento já está lá); atrasado aparece; "não aconteceu" some', () => {
+    const commitments = [
+      recurring('pago', { day: 2, bankText: 'LOJA PAGA' }),
+      recurring('atrasado', { day: 3 }),
+      recurring('pulado', { day: 4 }),
+      recurring('depois', { day: 20 }),
+    ]
+    const transactions = [{ id: 't1', accountId: 'acc1', date: '2026-11-02', status: 'posted' as const, description: 'LOJA PAGA', amount: -10_000 }]
 
-    const list = monthForecast({ year: 2026, month: 11 }, { commitments, bills: [], today: TODAY })
+    const list = monthForecast({ year: 2026, month: 11 }, { commitments, bills: [], today: TODAY, transactions, skips: ['pulado:2026-11'] })
 
-    expect(list.map((o) => o.commitmentId)).toEqual(['depois', 'hoje'])
+    expect(list.map((o) => [o.commitmentId, o.status])).toEqual([
+      ['depois', 'pending'],
+      ['atrasado', 'late'],
+    ])
   })
 
   it('depois de 12 meses à frente, só as parcelas (que vão até a última)', () => {

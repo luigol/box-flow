@@ -67,6 +67,22 @@ describe('classify: categoria de um lançamento', () => {
     ]).toEqual(['from-user', 'from-import'])
   })
 
+  it('ligado a um compromisso: pega a categoria dele (vence as regras, perde para a escolha à mão)', () => {
+    const rules = [rule({ text: 'LOJA', categoryId: 'clothing' })]
+    const commitmentCategory = new Map([
+      ['ligado', 'subscriptions'],
+      ['ligado-e-a-mao', 'subscriptions'],
+    ])
+    const manual = new Map([['ligado-e-a-mao', 'gifts']])
+    const ctx = { rules, manual, commitmentCategory }
+
+    expect([
+      classify(tx({ id: 'ligado', description: 'LOJA EXEMPLO' }), checking, ctx),
+      classify(tx({ id: 'ligado-e-a-mao', description: 'LOJA EXEMPLO' }), checking, ctx),
+      classify(tx({ id: 'solto', description: 'LOJA EXEMPLO' }), checking, ctx),
+    ]).toEqual(['subscriptions', 'gifts', 'clothing'])
+  })
+
   it('entre as suas regras, vale a mais recente', () => {
     const older = rule({ text: 'LOJA', categoryId: 'clothing', createdAt: '2026-11-01T10:00:00.000Z' })
     const newer = rule({ text: 'LOJA EXEMPLO', categoryId: 'gifts', createdAt: '2026-11-15T10:00:00.000Z' })

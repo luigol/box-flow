@@ -1,38 +1,70 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { suggestRuleText } from '../db/classification'
 import { deleteCommitment, endCommitment, saveCommitment } from '../db/commitments'
 import { db } from '../db/instance'
+import { linkTransaction, nearestOccurrenceKey } from '../db/reconciliation'
+import type { BankTransaction } from '../domain/bank'
 import { categoryName, TRANSFER } from '../domain/category'
 import { firstMonth, type Commitment } from '../domain/commitment'
 import { moneyInput, parseMoney } from '../lib/format'
-import { currentMonth, type YearMonth } from '../lib/month'
+import { addMonths, currentMonth, type YearMonth } from '../lib/month'
 import { Sheet } from './Sheet'
+import { TxPicker } from './TxPicker'
 
 const field = 'mt-1 w-full rounded-xl bg-card px-4 py-3 outline-none'
 const primary = 'rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80'
 
+interface CommitmentSheetProps {
+  commitment?: Commitment
+  /** Criar a partir de um lançamento do extrato ("Criar compromisso a partir deste"). */
+  fromTx?: BankTransaction
+  /** Categoria atual do lançamento de origem. */
+  fromCategoryId?: string
+  onClose: () => void
+}
+
 /** Criar ou editar um compromisso (docs/design.md, "Compromisso"). */
-export function CommitmentSheet({ commitment, onClose }: { commitment?: Commitment; onClose: () => void }) {
+export function CommitmentSheet({ commitment, fromTx, fromCategoryId, onClose }: CommitmentSheetProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const categories = useLiveQuery(() => db.categories.toArray(), [])
   const accounts = useLiveQuery(() => db.accounts.toArray(), [])
+  const bills = useLiveQuery(() => db.bills.toArray(), [])
   const existing = commitment
   const [kind, setKind] = useState<Commitment['kind']>(existing?.kind ?? 'recurring')
-  const [direction, setDirection] = useState<Commitment['direction']>(existing?.direction ?? 'out')
-  const [name, setName] = useState(existing?.name ?? '')
+  const [direction, setDirection] = useState<Commitment['direction']>(existing?.direction ?? (fromTx && fromTx.amount > 0 ? 'in' : 'out'))
+  const [name, setName] = useState(existing?.name ?? (fromTx ? (fromTx.merchant ?? suggestRuleText(fromTx)) : ''))
   const [person, setPerson] = useState(existing?.kind === 'installment' ? existing.person : '')
-  const [categoryId, setCategoryId] = useState(existing?.categoryId ?? '')
-  const [amountText, setAmountText] = useState(existing ? moneyInput(existing.amount, locale) : '')
+  const [categoryId, setCategoryId] = useState(existing?.categoryId ?? fromCategoryId ?? '')
+  const [amountText, setAmountText] = useState(
+    existing ? moneyInput(existing.amount, locale) : fromTx ? moneyInput(Math.abs(fromTx.amount), locale) : '',
+  )
   const [amountMode, setAmountMode] = useState<Commitment['amountMode']>(existing?.amountMode ?? 'fixed')
   const [frequency, setFrequency] = useState(existing?.kind === 'recurring' ? existing.frequency : 'monthly')
-  const [day, setDay] = useState(String(existing?.day ?? ''))
+  const [day, setDay] = useState(String(existing?.day ?? (fromTx ? Number(fromTx.date.slice(8, 10)) : '')))
   const [month, setMonth] = useState(String(existing?.start.month ?? currentMonth().month))
-  const [accountId, setAccountId] = useState(existing?.accountId ?? '')
+  const [accountId, setAccountId] = useState(existing?.accountId ?? fromTx?.accountId ?? '')
   const [total, setTotal] = useState(existing?.kind === 'installment' ? String(existing.total) : '')
   const [paid, setPaid] = useState(existing?.kind === 'installment' ? String(existing.paid) : '0')
+  const [bankText, setBankText] = useState(existing?.bankText ?? (fromTx ? suggestRuleText(fromTx) : ''))
+  const [confirmEach, setConfirmEach] = useState(existing?.confirmEach ?? fromTx?.counterparty === 'person')
+  const [picked, setPicked] = useState<BankTransaction | null>(fromTx ?? null)
+  const [picking, setPicking] = useState(false)
   const [confirming, setConfirming] = useState<'end' | 'remove' | null>(null)
+
+  /** "Vincular ao extrato": o lançamento escolhido vira a assinatura do compromisso. */
+  function pick(tx: BankTransaction) {
+    setPicked(tx)
+    setPicking(false)
+    setBankText(suggestRuleText(tx))
+    setConfirmEach(tx.counterparty === 'person')
+    if (!accountId) setAccountId(tx.accountId)
+    if (!day) setDay(String(Number(tx.date.slice(8, 10))))
+    if (!amountText) setAmountText(moneyInput(Math.abs(tx.amount), locale))
+    if (!name) setName(tx.merchant ?? suggestRuleText(tx))
+  }
 
   const amount = parseMoney(amountText)
   const dayNumber = Number(day)
@@ -59,7 +91,9 @@ export function CommitmentSheet({ commitment, onClose }: { commitment?: Commitme
       const passed = m < now.month || (m === now.month && today.getDate() > dayNumber)
       return { year: now.year + (passed ? 1 : 0), month: m }
     }
-    return firstMonth(dayNumber, today, { linkedThisMonth: false })
+    const now = currentMonth(today)
+    const linkedThisMonth = picked?.date.startsWith(`${now.year}-${String(now.month).padStart(2, '0')}`) ?? false
+    return firstMonth(dayNumber, today, { linkedThisMonth })
   }
 
   async function save() {
@@ -74,14 +108,37 @@ export function CommitmentSheet({ commitment, onClose }: { commitment?: Commitme
       start: start(),
       ...(categoryId ? { categoryId } : {}),
       ...(accountId ? { accountId } : {}),
-      ...(existing?.bankText ? { bankText: existing.bankText } : {}),
+      ...(bankText.trim() ? { bankText: bankText.trim() } : {}),
     }
+    // Vinculado ao extrato: liga também o histórico dos últimos 12 meses (decisão Q13).
+    const historyFrom =
+      picked && kind === 'recurring'
+        ? addMonths(currentMonth(), -12)
+        : existing?.kind === 'recurring'
+          ? existing.historyFrom
+          : undefined
     const next: Commitment =
       kind === 'recurring'
-        ? { ...base, kind, frequency, ...(existing?.kind === 'recurring' && existing.end ? { end: existing.end } : {}) }
+        ? {
+            ...base,
+            kind,
+            frequency,
+            ...(confirmEach ? { confirmEach } : {}),
+            ...(historyFrom ? { historyFrom } : {}),
+            ...(existing?.kind === 'recurring' && existing.end ? { end: existing.end } : {}),
+          }
         : { ...base, kind, person: person.trim(), total: totalNumber, paid: paidNumber }
     await saveCommitment(next)
+    // O lançamento escolhido fica ligado à ocorrência mais próxima, mesmo que o texto seja editado.
+    if (picked) {
+      const key = nearestOccurrenceKey(next, picked, bills ?? [])
+      if (key) await linkTransaction(picked.id, key)
+    }
     onClose()
+  }
+
+  if (picking) {
+    return <TxPicker title={t('link.pickTitle')} onPick={pick} onClose={() => setPicking(false)} />
   }
 
   const sortedCategories = [...(categories ?? [])]
@@ -205,6 +262,40 @@ export function CommitmentSheet({ commitment, onClose }: { commitment?: Commitme
           </select>
         </Label>
         {isCard && <p className="px-3 text-[13px] tracking-normal text-ink-2">{t('commitmentForm.cardHint')}</p>}
+
+        <div className="rounded-xl bg-card px-4 py-3">
+          <button type="button" className="text-accent" onClick={() => setPicking(true)}>
+            {t('link.linkToStatement')}
+          </button>
+          {picked && (
+            <p className="mt-1 truncate text-[13px] tracking-normal text-ink-2">
+              {t('link.linked', { description: `${picked.merchant ?? picked.description} (${picked.date.slice(8, 10)}/${picked.date.slice(5, 7)})` })}
+            </p>
+          )}
+          {(picked || bankText || existing?.bankText) && (
+            <label className="mt-3 block text-[13px] tracking-normal text-ink-2">
+              {t('link.bankText')}
+              <input
+                value={bankText}
+                onChange={(e) => setBankText(e.target.value)}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                className="mt-1 w-full rounded-xl bg-canvas px-3 py-2 font-mono text-[15px] text-ink outline-none"
+              />
+              <span className="mt-1 block">{t('link.bankTextHint')}</span>
+            </label>
+          )}
+          {kind === 'recurring' && (picked || bankText) && (
+            <label className="mt-3 flex items-start gap-3 text-[15px]">
+              <input type="checkbox" checked={confirmEach} onChange={(e) => setConfirmEach(e.target.checked)} className="mt-1 size-4 accent-[var(--accent)]" />
+              <span>
+                {t('link.confirmEach')}
+                <span className="block text-[13px] tracking-normal text-ink-2">{t('link.confirmEachHint')}</span>
+              </span>
+            </label>
+          )}
+        </div>
 
         {confirming ? (
           <div className="rounded-xl bg-card p-4">

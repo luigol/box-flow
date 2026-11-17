@@ -12,6 +12,9 @@ const BACKUP_TABLES = [
   'rules',
   'classifications',
   'commitments',
+  'commitmentLinks',
+  'commitmentUnlinks',
+  'skips',
 ] as const
 
 /**

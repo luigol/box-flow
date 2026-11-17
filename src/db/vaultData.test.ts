@@ -44,6 +44,9 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
       frequency: 'monthly', day: 10, start: { year: 2026, month: 12 },
     }
     await phone.commitments.put(rent)
+    await phone.commitmentLinks.put({ txId: 't1', occurrenceKey: 'k1:2026-12' })
+    await phone.commitmentUnlinks.put({ txId: 't9', commitmentId: 'k1' })
+    await phone.skips.put({ key: 'k1:2027-01' })
 
     const newPhone = freshDb()
     const fileContent = JSON.parse(JSON.stringify(await exportVault(phone))) as VaultPayload

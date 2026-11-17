@@ -92,6 +92,18 @@ describe('fromPluggyTransaction: tradução de uma transação da Pluggy', () =>
     })
   })
 
+  it('guarda só se o outro lado é pessoa ou empresa (sem o documento)', () => {
+    const doc = (type: string, value: string) => ({ documentNumber: { type, value } })
+    const sentToPerson = rawTx({ type: 'DEBIT', paymentData: { payer: doc('CPF', '111.222.333-44'), receiver: doc('CPF', '555.666.777-88') } })
+    const receivedFromCompany = rawTx({ type: 'CREDIT', amount: 100, paymentData: { payer: doc('CNPJ', '12.345.678/0001-90'), receiver: doc('CPF', '111.222.333-44') } })
+
+    expect([
+      fromPluggyTransaction(sentToPerson).counterparty,
+      fromPluggyTransaction(receivedFromCompany).counterparty,
+      fromPluggyTransaction(rawTx()).counterparty,
+    ]).toEqual(['person', 'company', undefined])
+  })
+
   it('não guarda o CPF nem os dados de quem pagou ou recebeu', () => {
     const tx = fromPluggyTransaction(
       rawTx({

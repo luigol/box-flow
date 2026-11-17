@@ -61,6 +61,8 @@ export interface ClassifyContext {
   rules: Rule[]
   /** Categoria escolhida à mão, por id do lançamento. */
   manual: Map<string, string>
+  /** Categoria do compromisso ao qual o lançamento está ligado, por id do lançamento. */
+  commitmentCategory?: Map<string, string>
 }
 
 /**
@@ -97,6 +99,9 @@ export const DEFAULT_RULES: Rule[] = [
 export function classify(tx: BankTransaction, account: BankAccount, ctx: ClassifyContext): string | undefined {
   const manual = ctx.manual.get(tx.id)
   if (manual) return manual
+  // Ligado a um compromisso: a categoria dele vence as regras (decisão Q19 do grill).
+  const fromCommitment = ctx.commitmentCategory?.get(tx.id)
+  if (fromCommitment) return fromCommitment
   // Separados por "|" para um trecho não casar juntando o fim de um texto com o começo de outro.
   const text = [tx.description, tx.rawDescription, tx.merchant].filter(Boolean).map((s) => normalize(s!)).join('|')
   for (const source of SOURCE_PRIORITY) {

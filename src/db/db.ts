@@ -1,4 +1,5 @@
-import Dexie, { type DexieOptions, type EntityTable, type Transaction } from 'dexie'
+import Dexie, { type DexieOptions, type EntityTable, type Table, type Transaction } from 'dexie'
+import type { CommitmentLink } from '../domain/reconcile'
 import type { BankAccount, BankTransaction } from '../domain/bank'
 import type { CardBill } from '../domain/card'
 import { DEFAULT_CATEGORIES, type Category, type Rule } from '../domain/category'
@@ -50,6 +51,12 @@ export class BoxFlowDb extends Dexie {
   rules!: EntityTable<Rule, 'id'>
   classifications!: EntityTable<ManualClassification, 'txId'>
   commitments!: EntityTable<Commitment, 'id'>
+  /** Vínculos confirmados pelo usuário (lançamento ↔ ocorrência). Os automáticos são calculados. */
+  commitmentLinks!: Table<CommitmentLink, [string, string]>
+  /** "Desvincular": o lançamento não se liga sozinho a este compromisso. */
+  commitmentUnlinks!: Table<{ txId: string; commitmentId: string }, [string, string]>
+  /** Ocorrências marcadas como "não aconteceu neste mês". */
+  skips!: EntityTable<{ key: string }, 'key'>
 
   constructor(name = 'box-flow', options?: DexieOptions) {
     super(name, options)
@@ -64,6 +71,11 @@ export class BoxFlowDb extends Dexie {
       .stores({ categories: 'id', rules: 'id, source', classifications: 'txId' })
       .upgrade(seedCategories)
     this.version(3).stores({ commitments: 'id' })
+    this.version(4).stores({
+      commitmentLinks: '[txId+occurrenceKey], txId, occurrenceKey',
+      commitmentUnlinks: '[txId+commitmentId], txId',
+      skips: 'key',
+    })
     // Banco criado do zero (sem passar pelo upgrade): também recebe as categorias padrão.
     this.on('populate', seedCategories)
   }

@@ -34,6 +34,8 @@ export interface BankTransaction {
   bankCategory?: string
   /** Nome do estabelecimento, quando o banco informa. */
   merchant?: string
+  /** Em Pix e transferências: o outro lado é pessoa (CPF) ou empresa (CNPJ). O documento não é guardado. */
+  counterparty?: 'person' | 'company'
   /** Em reais. Negativo = dinheiro saiu; positivo = entrou. Em qualquer tipo de conta. */
   amount: Cents
   /** Valor original de compra em outra moeda (ex.: US$ 12,00), com o mesmo sinal de `amount`. */

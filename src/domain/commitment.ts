@@ -19,6 +19,11 @@ interface CommitmentBase {
   accountId?: string
   /** Trecho do texto do banco que identifica o compromisso. */
   bankText?: string
+  /**
+   * Pix para pessoa: o lançamento com o texto vira sugestão e o usuário confirma (o mesmo Pix pode
+   * pagar várias coisas). Parcelado com pessoa é sempre assim.
+   */
+  confirmEach?: boolean
   /** Dia do mês em que cai (ou em que é cobrado, no cartão). */
   day: number
   /** Mês da primeira ocorrência. */
@@ -28,6 +33,8 @@ interface CommitmentBase {
 export interface RecurringCommitment extends CommitmentBase {
   kind: 'recurring'
   frequency: 'monthly' | 'yearly'
+  /** Desde quando procurar pagamentos antigos ("Vincular ao extrato" liga o histórico). */
+  historyFrom?: YearMonth
   /** Último mês com ocorrência, quando encerrado. */
   end?: YearMonth
 }
@@ -43,6 +50,10 @@ export interface InstallmentCommitment extends CommitmentBase {
 
 export interface Occurrence {
   commitmentId: string
+  /** Identifica a ocorrência: compromisso + mês da cobrança ("id:AAAA-MM"). */
+  key: string
+  /** Dia agendado (no cartão, o dia da cobrança). */
+  chargeDate: IsoDate
   /** Dia em que o dinheiro sai ou entra. */
   date: IsoDate
   /** Com sinal: negativo = saída. */
@@ -64,9 +75,12 @@ export function occurrences(commitment: Commitment, options: OccurrenceOptions):
   if (commitment.kind === 'installment') {
     // Parcelado: as parcelas que faltam, até a última, mesmo além do horizonte da previsão.
     for (let number = commitment.paid + 1, month = commitment.start; number <= commitment.total; number++, month = addMonths(month, 1)) {
+      const date = dateInMonth(month, commitment.day)
       list.push({
         commitmentId: commitment.id,
-        date: dateInMonth(month, commitment.day),
+        key: occurrenceKey(commitment.id, date),
+        chargeDate: date,
+        date,
         amount: signed,
         installment: { number, total: commitment.total },
       })
@@ -79,9 +93,19 @@ export function occurrences(commitment: Commitment, options: OccurrenceOptions):
   const card = cardCycle(options.bills.filter((b) => b.accountId === commitment.accountId))
   for (let month = commitment.start; compare(month, last) <= 0; month = addMonths(month, step)) {
     const charge = dateInMonth(month, commitment.day)
-    list.push({ commitmentId: commitment.id, date: card ? card(charge) : charge, amount: signed })
+    list.push({
+      commitmentId: commitment.id,
+      key: occurrenceKey(commitment.id, charge),
+      chargeDate: charge,
+      date: card ? card(charge) : charge,
+      amount: signed,
+    })
   }
   return list
+}
+
+function occurrenceKey(commitmentId: string, chargeDate: IsoDate): string {
+  return `${commitmentId}:${chargeDate.slice(0, 7)}`
 }
 
 /**
