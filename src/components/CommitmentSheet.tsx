@@ -109,6 +109,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, onClose }:
       ...(categoryId ? { categoryId } : {}),
       ...(accountId ? { accountId } : {}),
       ...(bankText.trim() ? { bankText: bankText.trim() } : {}),
+      ...(existing?.source ? { source: existing.source } : {}),
     }
     // Vinculado ao extrato: liga também o histórico dos últimos 12 meses (decisão Q13).
     const historyFrom =

@@ -2,16 +2,12 @@ import { IDBKeyRange, indexedDB } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { categoryName } from '../domain/category'
 import { BoxFlowDb } from './db'
-import { importRules, type RulesFileError } from './rulesImport'
+import { importRuleEntries } from './rulesImport'
 
 // Dados inventados: o repositório é público.
 let dbCount = 0
 function freshDb() {
   return new BoxFlowDb(`import-test-${++dbCount}`, { indexedDB, IDBKeyRange })
-}
-
-function rulesFile(rules: unknown[]): string {
-  return JSON.stringify({ format: 'box-flow-rules', version: 1, rules })
 }
 
 /** Regras guardadas como "texto → nome da categoria", para conferir sem depender de ids. */
@@ -20,15 +16,14 @@ async function storedRules(db: BoxFlowDb): Promise<string[]> {
   return (await db.rules.where('source').equals('import').toArray()).map((r) => `${r.text} → ${categories.get(r.categoryId)}`)
 }
 
-describe('importRules: arquivo de regras', () => {
-  it('importa as regras, reaproveita categorias existentes e cria as que faltam', async () => {
+describe('importRuleEntries: regras que vêm no box-flow.json', () => {
+  it('grava as regras, reaproveita categorias existentes e cria as que faltam', async () => {
     const db = freshDb()
-    const file = rulesFile([
+
+    const result = await importRuleEntries(db, [
       { text: 'PADARIA EXEMPLO', category: 'alimentacao' },
       { text: 'PETSHOP EXEMPLO', category: 'Pet' },
     ])
-
-    const result = await importRules(db, file)
 
     expect({ result, rules: await storedRules(db) }).toEqual({
       result: { imported: 2, categoriesCreated: 1, problems: [] },
@@ -36,11 +31,11 @@ describe('importRules: arquivo de regras', () => {
     })
   })
 
-  it('importar de novo substitui as regras importadas, sem duplicar categorias', async () => {
+  it('abrir de novo substitui as regras importadas, sem duplicar categorias', async () => {
     const db = freshDb()
-    await importRules(db, rulesFile([{ text: 'PETSHOP EXEMPLO', category: 'Pet' }, { text: 'X', category: 'Lazer' }]))
+    await importRuleEntries(db, [{ text: 'PETSHOP EXEMPLO', category: 'Pet' }, { text: 'X', category: 'Lazer' }])
 
-    const second = await importRules(db, rulesFile([{ text: 'PETSHOP NOVO', category: 'Pet' }]))
+    const second = await importRuleEntries(db, [{ text: 'PETSHOP NOVO', category: 'Pet' }])
 
     expect({
       categoriesCreated: second.categoriesCreated,
@@ -51,14 +46,13 @@ describe('importRules: arquivo de regras', () => {
 
   it('linhas com problema são avisadas pelo número e ignoradas; o resto entra', async () => {
     const db = freshDb()
-    const file = rulesFile([
+
+    const result = await importRuleEntries(db, [
       { text: 'LOJA EXEMPLO', category: 'Lazer' },
       { category: 'Lazer' },
       { text: 'SEM CATEGORIA' },
       { text: '   ', category: 'Lazer' },
     ])
-
-    const result = await importRules(db, file)
 
     expect({ result, rules: await storedRules(db) }).toEqual({
       result: {
@@ -72,19 +66,5 @@ describe('importRules: arquivo de regras', () => {
       },
       rules: ['LOJA EXEMPLO → Lazer'],
     })
-  })
-
-  it('arquivo que não é de regras do box-flow: avisa e não mexe no que já estava', async () => {
-    const db = freshDb()
-    await importRules(db, rulesFile([{ text: 'LOJA EXEMPLO', category: 'Lazer' }]))
-
-    const notJson = await importRules(db, 'isto não é JSON').catch((e: unknown) => e)
-    const otherFormat = await importRules(db, JSON.stringify({ format: 'outra-coisa', rules: [] })).catch((e: unknown) => e)
-
-    expect({
-      notJson: (notJson as RulesFileError).reason,
-      otherFormat: (otherFormat as RulesFileError).reason,
-      rules: await storedRules(db),
-    }).toEqual({ notJson: 'invalid-json', otherFormat: 'wrong-format', rules: ['LOJA EXEMPLO → Lazer'] })
   })
 })

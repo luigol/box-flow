@@ -28,6 +28,8 @@ interface CommitmentBase {
   day: number
   /** Mês da primeira ocorrência. */
   start: YearMonth
+  /** `import`: veio do arquivo (script); abrir o arquivo de novo substitui. Sem: criado no app. */
+  source?: 'import'
 }
 
 export interface RecurringCommitment extends CommitmentBase {

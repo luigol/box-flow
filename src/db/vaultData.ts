@@ -1,5 +1,7 @@
+import { normalize } from '../domain/category'
+import type { Commitment } from '../domain/commitment'
 import type { BoxFlowDb, PluggySettings } from './db'
-import { importRuleEntries, type ImportResult, type RulesFileRule } from './rulesImport'
+import { categoriesByName, importRuleEntries, type ImportResult, type RulesFileRule } from './rulesImport'
 import { readPluggySettings, writePluggySettings } from './settings'
 
 /** Tabelas que vão no backup (as configurações vão em `pluggy`). */
@@ -26,12 +28,19 @@ const BACKUP_TABLES = [
 export interface VaultPayload {
   pluggy?: PluggySettings
   rules?: RulesFileRule[]
+  /** Compromissos com a categoria pelo nome (gerados pelo script); entram como `import`. */
+  commitments?: CommitmentFileEntry[]
   tables?: Partial<Record<(typeof BACKUP_TABLES)[number], unknown[]>>
 }
+
+/** Compromisso no arquivo: igual ao do app, mas com `category` (nome) no lugar de `categoryId`. */
+export type CommitmentFileEntry = DistributiveOmit<Commitment, 'categoryId' | 'source'> & { category?: string }
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
 export interface ApplyResult {
   pluggy: boolean
   rules?: ImportResult
+  commitments?: number
   /** Lançamentos restaurados do backup. */
   transactions?: number
 }
@@ -63,5 +72,27 @@ export async function applyVault(db: BoxFlowDb, payload: VaultPayload): Promise<
     result.pluggy = true
   }
   if (payload.rules) result.rules = await importRuleEntries(db, payload.rules)
+  if (payload.commitments) result.commitments = await importCommitments(db, payload.commitments)
   return result
+}
+
+/** Compromissos do arquivo substituem os que vieram de arquivo antes; os criados no app ficam. */
+async function importCommitments(db: BoxFlowDb, entries: CommitmentFileEntry[]): Promise<number> {
+  await db.transaction('rw', [db.categories, db.commitments], async () => {
+    const byName = categoriesByName(await db.categories.toArray())
+    const imported: Commitment[] = []
+    for (const { category, ...entry } of entries) {
+      let categoryId = category ? byName.get(normalize(category)) : undefined
+      if (category && !categoryId) {
+        categoryId = `c:${crypto.randomUUID()}`
+        await db.categories.add({ id: categoryId, name: category.trim() })
+        byName.set(normalize(category), categoryId)
+      }
+      imported.push({ ...entry, ...(categoryId ? { categoryId } : {}), source: 'import' } as Commitment)
+    }
+    const previous = (await db.commitments.toArray()).filter((c) => c.source === 'import').map((c) => c.id)
+    await db.commitments.bulkDelete(previous)
+    await db.commitments.bulkPut(imported)
+  })
+  return entries.length
 }

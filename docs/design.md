@@ -156,7 +156,10 @@ Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex
   "cipher": { "name": "AES-GCM", "iv": "<base64>" },
   "data": "<base64: JSON cifrado>" }
 ```
-- Conteúdo (todas as partes opcionais): `pluggy` (`clientId`, `clientSecret`, `itemIds`); `rules` (formato do arquivo de regras, gravadas como importadas); `tables` (cópia das tabelas do app). A senha é normalizada em NFC antes de virar chave.
+- Conteúdo (todas as partes opcionais): `pluggy` (`clientId`, `clientSecret`, `itemIds`); `rules` (texto + nome da categoria, gravadas como importadas); `commitments` (compromissos com a categoria pelo nome, gravados como importados); `tables` (cópia das tabelas do app, no backup). A senha é normalizada em NFC antes de virar chave.
+- **Um arquivo só: `box-flow.json`** (revisto em 17/11/2026). É o **único** arquivo que o app abre: não há mais arquivo de regras sem senha nem "importar regras" separado. Quem não programa preenche a Pluggy em Ajustes → Bancos e cria regras, categorias e compromissos no app; o "Exportar backup" grava tudo no `box-flow.json`.
+- Um script do usuário pode gerar a **primeira versão** do arquivo (credenciais + regras + compromissos, ex.: migrando de uma planilha); depois, o arquivo de verdade é o backup do app, salvo por cima.
+- Abrir de novo um arquivo com `rules`/`commitments` substitui só os **importados** antes; o que foi criado no app fica.
 - Implementado em `src/lib/vault.ts` e `src/db/vaultData.ts`.
 
 ## Categorias padrão
@@ -172,15 +175,10 @@ Transporte por app · Transporte · Alimentação · Lazer · Saúde · Presente
 - **Totais do mês:** entradas, saídas e resultado, sem transferências; o extrato mostra quantos estão sem categoria.
 - Implementado em `src/domain/category.ts` (`classify`) e `src/domain/statement.ts` (`monthTotals`).
 
-## Arquivo de regras
-```json
-{ "format": "box-flow-rules", "version": 1,
-  "rules": [{ "text": "DL*99", "category": "Transporte por app" }] }
-```
-- `category` é o nome da categoria; a que não existe é criada (o nome é comparado sem acento e sem maiúsculas, nos dois idiomas).
-- Importar de novo **substitui** as regras importadas antes; as regras criadas no app ficam.
-- Linha sem texto ou sem categoria é ignorada e avisada pelo número; arquivo que não é JSON ou não é deste formato é recusado sem mudar nada.
-- Implementado em `src/db/rulesImport.ts`.
+## Regras vindas do arquivo
+- No `box-flow.json`, cada regra é `{ "text": "DL*99", "category": "Transporte por app" }`. `category` é o nome; a categoria que não existe é criada (o nome é comparado sem acento e sem maiúsculas, nos dois idiomas).
+- Abrir de novo **substitui** as regras importadas antes; as criadas no app ficam. Linha sem texto ou sem categoria é ignorada.
+- Implementado em `src/db/rulesImport.ts` (`importRuleEntries`).
 
 ## Depois do MVP
 - Senha para abrir o app e **Face ID** via WebAuthn (passkey). Para a senha também cifrar os dados: extensão PRF do WebAuthn (testar no iOS antes de contar com ela).

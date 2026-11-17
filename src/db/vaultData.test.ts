@@ -28,6 +28,28 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
     }).toEqual({ pluggy: PLUGGY, rules: [['PADARIA EXEMPLO', 'food']] })
   })
 
+  it('compromissos do arquivo: categoria pelo nome; abrir de novo substitui os do arquivo e mantém os criados no app', async () => {
+    const db = freshDb()
+    const mine: Commitment = {
+      id: 'k:meu', kind: 'recurring', name: 'Criado no app', direction: 'out', amount: 1_000, amountMode: 'fixed',
+      frequency: 'monthly', day: 1, start: { year: 2026, month: 12 },
+    }
+    await db.commitments.put(mine)
+    const seed = (name: string) => ({
+      id: 'seed:aluguel', kind: 'recurring' as const, name, category: 'Moradia', direction: 'out' as const, amount: 80_000,
+      amountMode: 'fixed' as const, frequency: 'monthly' as const, day: 10, start: { year: 2026, month: 11 },
+    })
+    const old = { ...seed('Antigo'), id: 'seed:sumiu', category: 'Pet' }
+
+    await applyVault(db, { commitments: [seed('Aluguel'), old] })
+    await applyVault(db, { commitments: [seed('Aluguel novo')] })
+
+    expect((await db.commitments.orderBy('id').toArray()).map((c) => [c.id, c.name, c.categoryId, c.source])).toEqual([
+      ['k:meu', 'Criado no app', undefined, undefined],
+      ['seed:aluguel', 'Aluguel novo', 'housing', 'import'],
+    ])
+  })
+
   it('backup exportado de um aparelho e aberto em outro deixa tudo igual', async () => {
     const phone = freshDb()
     await writePluggySettings(phone, PLUGGY)

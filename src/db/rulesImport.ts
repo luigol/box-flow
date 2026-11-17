@@ -2,8 +2,8 @@ import { DEFAULT_CATEGORIES, normalize, type Category, type Rule } from '../doma
 import type { BoxFlowDb } from './db'
 
 /**
- * Formato do arquivo de regras (docs/design.md, "Arquivo de regras"):
- * { "format": "box-flow-rules", "version": 1, "rules": [{ "text": "DL*99", "category": "Transporte por app" }] }
+ * Regra como vem no box-flow.json (docs/design.md, "Arquivo trancado"): texto + nome da categoria.
+ * Ex.: { "text": "DL*99", "category": "Transporte por app" }
  */
 export interface RulesFileRule {
   text?: unknown
@@ -16,36 +16,10 @@ export interface ImportResult {
   problems: { rule: number; problem: 'missing-text' | 'missing-category' }[]
 }
 
-/** O arquivo inteiro foi recusado; nada foi alterado. */
-export class RulesFileError extends Error {
-  override name = 'RulesFileError'
-
-  constructor(readonly reason: 'invalid-json' | 'wrong-format') {
-    super(reason)
-  }
-}
-
-function parse(fileText: string): RulesFileRule[] {
-  let file: unknown
-  try {
-    file = JSON.parse(fileText)
-  } catch {
-    throw new RulesFileError('invalid-json')
-  }
-  const { format, rules } = (file ?? {}) as { format?: unknown; rules?: unknown }
-  if (format !== 'box-flow-rules' || !Array.isArray(rules)) throw new RulesFileError('wrong-format')
-  return rules as RulesFileRule[]
-}
-
 /**
- * Lê o arquivo de regras e guarda as regras como `import`, criando as categorias que faltam.
- * Arquivo recusado → `RulesFileError`, sem alterar nada.
+ * Grava as regras do arquivo como `import`, criando as categorias que faltam. Substitui as importadas
+ * antes (as criadas no app ficam); linha sem texto ou sem categoria é ignorada e avisada.
  */
-export async function importRules(db: BoxFlowDb, fileText: string): Promise<ImportResult> {
-  return importRuleEntries(db, parse(fileText))
-}
-
-/** Grava regras no formato do arquivo (texto + nome da categoria) como `import`. Usada também pelo cofre. */
 export async function importRuleEntries(db: BoxFlowDb, entries: RulesFileRule[]): Promise<ImportResult> {
   const file = { rules: entries }
   const result: ImportResult = { imported: 0, categoriesCreated: 0, problems: [] }
@@ -80,7 +54,7 @@ export async function importRuleEntries(db: BoxFlowDb, entries: RulesFileRule[])
 }
 
 /** Nome (sem acento, maiúsculas e espaços) → id, incluindo os nomes padrão nos dois idiomas. */
-function categoriesByName(categories: Category[]): Map<string, string> {
+export function categoriesByName(categories: Category[]): Map<string, string> {
   const byName = new Map<string, string>()
   for (const category of categories) {
     const defaults = DEFAULT_CATEGORIES.find((c) => c.id === category.id)?.names

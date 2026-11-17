@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { db } from '../db/instance'
-import { importRules, RulesFileError } from '../db/rulesImport'
 import { applyVault, exportVault, type VaultPayload } from '../db/vaultData'
 import { isVault, lockVault, MIN_PASSWORD_LENGTH, unlockVault, VaultError } from '../lib/vault'
 import { syncNow } from '../sync/runSync'
@@ -11,7 +10,7 @@ const passwordInput = 'mt-1 w-full rounded-xl bg-card px-4 py-3 outline-none'
 const primary = 'rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80'
 
 /**
- * Abrir um arquivo do box-flow: regras (aberto) ou trancado (pede a senha).
+ * Abrir o box-flow.json (trancado: pede a senha). É o único arquivo que o app abre.
  * Backup com lançamentos substitui os dados do aparelho: pede confirmação antes.
  */
 export function OpenFileSheet({ fileText, onClose }: { fileText: string; onClose: () => void }) {
@@ -27,6 +26,7 @@ export function OpenFileSheet({ fileText, onClose }: { fileText: string; onClose
     const parts = [
       result.pluggy && t('files.partPluggy'),
       result.rules && t('files.partRules', { count: result.rules.imported }),
+      result.commitments !== undefined && t('files.partCommitments', { count: result.commitments }),
       result.transactions !== undefined && t('files.partTransactions', { count: result.transactions }),
     ].filter(Boolean)
     setMessage({ text: t('files.opened', { parts: parts.join(', ') }) })
@@ -45,16 +45,6 @@ export function OpenFileSheet({ fileText, onClose }: { fileText: string; onClose
       setMessage({ text: t(reason === 'wrong-password' ? 'files.wrongPassword' : 'files.notAVault'), error: true })
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function openPlain() {
-    try {
-      const result = await importRules(db, fileText)
-      setMessage({ text: t('rulesPage.importedNow', { rules: result.imported, categories: result.categoriesCreated }) })
-    } catch (error) {
-      const wrongFormat = error instanceof RulesFileError && error.reason === 'wrong-format'
-      setMessage({ text: t(wrongFormat ? 'rulesPage.wrongFormat' : 'rulesPage.invalidJson'), error: true })
     }
   }
 
@@ -103,12 +93,12 @@ export function OpenFileSheet({ fileText, onClose }: { fileText: string; onClose
           </button>
         </form>
       ) : (
-        <div className="mt-2 px-2">
-          <p className="text-[15px] text-ink-2">{t('files.plainBody')}</p>
-          <button type="button" className={`mt-5 ${primary}`} onClick={() => void openPlain()}>
-            {t('rulesPage.importButton')}
+        <>
+          <p className="mt-2 px-2 text-warning">{t('files.notAVault')}</p>
+          <button type="button" onClick={onClose} className="mt-5 px-2 text-accent">
+            {t('quickAdd.close')}
           </button>
-        </div>
+        </>
       )}
     </Sheet>
   )
@@ -129,7 +119,8 @@ export function ExportSheet({ onClose }: { onClose: () => void }) {
     setBusy(true)
     try {
       const text = await lockVault(await exportVault(db), password)
-      await deliverFile(text, `box-flow-backup-${new Date().toISOString().slice(0, 10)}.json`)
+      // Um arquivo só (decisão de 17/11/2026): salvar por cima do anterior.
+      await deliverFile(text, 'box-flow.json')
       setDone(true)
     } finally {
       setBusy(false)
