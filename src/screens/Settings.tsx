@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ExportSheet, OpenFileSheet } from '../components/FileSheets'
+import { IgnoredSuggestionsSheet } from '../components/IgnoredSuggestionsSheet'
 import { Group, LinkRow, Row } from '../components/List'
 import { ScreenHeader } from '../components/ScreenHeader'
 import { db, loadPluggySettings } from '../db/instance'
@@ -15,6 +16,8 @@ export function Settings({ onOpenBanks, onOpenCategories }: { onOpenBanks: () =>
   const fileInput = useRef<HTMLInputElement>(null)
   const [opening, setOpening] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const ignoredCount = useLiveQuery(() => db.ignoredSuggestions.count(), [])
+  const [showIgnored, setShowIgnored] = useState(false)
 
   return (
     <>
@@ -46,6 +49,9 @@ export function Settings({ onOpenBanks, onOpenCategories }: { onOpenBanks: () =>
           value={t('settings.categoriesCount', { count: categoryCount ?? 0 })}
           onClick={onOpenCategories}
         />
+        {(ignoredCount ?? 0) > 0 && (
+          <LinkRow label={t('settings.ignoredSuggestions')} value={String(ignoredCount)} onClick={() => setShowIgnored(true)} />
+        )}
       </Group>
       <Group title={t('settings.backup')} footer={t('settings.backupHint')}>
         <button type="button" onClick={() => fileInput.current?.click()} className={actionRow}>
@@ -71,6 +77,7 @@ export function Settings({ onOpenBanks, onOpenCategories }: { onOpenBanks: () =>
       </Group>
       {opening !== null && <OpenFileSheet fileText={opening} onClose={() => setOpening(null)} />}
       {exporting && <ExportSheet onClose={() => setExporting(false)} />}
+      {showIgnored && <IgnoredSuggestionsSheet onClose={() => setShowIgnored(false)} />}
     </>
   )
 }

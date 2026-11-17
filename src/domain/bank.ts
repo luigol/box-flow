@@ -7,6 +7,11 @@ export interface CardDetails extends CardCharge {
   purchaseDate?: IsoDate
 }
 
+/** Descrição sem o "NN/NN" da parcela no fim: igual em todas as parcelas de uma compra. */
+export function withoutInstallment(description: string): string {
+  return description.replace(/\s*\d{1,2}\/\d{1,2}\s*$/, '').replace(/\s+/g, ' ').trim()
+}
+
 /** Conta vinda do banco: conta corrente ou cartão. */
 export interface BankAccount {
   id: string

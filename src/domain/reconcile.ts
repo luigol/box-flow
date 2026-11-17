@@ -1,7 +1,7 @@
 import { currentMonth, dateInMonth, type YearMonth } from '../lib/month'
 import type { BankTransaction } from './bank'
 import type { Cents } from './card'
-import { normalize } from './category'
+import { normalize, searchText } from './category'
 import { occurrences, type Commitment, type Occurrence } from './commitment'
 import type { StoredBillLike } from './commitmentTypes'
 
@@ -93,14 +93,10 @@ function unique(list: BankTransaction[]): BankTransaction[] {
 
 /** O lançamento corresponde à ocorrência? Texto do compromisso, mesma conta (se informada), mesmo sentido, na janela. */
 function textMatches(commitment: Commitment, occurrence: Occurrence, tx: BankTransaction): boolean {
-  if (!commitment.bankText || !textOf(tx).includes(normalize(commitment.bankText))) return false
+  if (!commitment.bankText || !searchText(tx).includes(normalize(commitment.bankText))) return false
   if (commitment.accountId && tx.accountId !== commitment.accountId) return false
   if ((commitment.direction === 'out') !== tx.amount < 0) return false
   return Math.abs(daysBetween(tx.date, occurrence.chargeDate)) <= WINDOW_DAYS
-}
-
-function textOf(tx: BankTransaction): string {
-  return [tx.description, tx.rawDescription, tx.merchant].filter(Boolean).map((s) => normalize(s!)).join('|')
 }
 
 function daysBetween(a: string, b: string): number {

@@ -8,7 +8,7 @@ App de finanças pessoais **open source** e **local-first**. Ele puxa as transa�
 - **Sem loja de apps.** No iPhone ou no Android, abra o site e use "Adicionar à Tela de Início".
 - **Cada pessoa usa a própria conta da Pluggy.** O app não tem credenciais de ninguém embutidas.
 
-> **Status:** em construção. Já conecta à Pluggy (Ajustes → Bancos), guarda os lançamentos no aparelho, classifica por categorias e regras, prevê os compromissos (recorrentes e parcelados) e liga cada previsto ao lançamento do banco, mostra o extrato e os totais do mês e guarda tudo num arquivo só, `box-flow.json`, trancado com senha (que também serve para configurar o app sem digitar as credenciais). Ainda sem compromissos e saldo. As decisões estão em [docs/design.md](docs/design.md).
+> **Status:** em construção. Já conecta à Pluggy (Ajustes → Bancos), guarda os lançamentos no aparelho, classifica por categorias e regras, prevê os compromissos (recorrentes e parcelados) e liga cada previsto ao lançamento do banco, sugere recorrentes a partir do extrato, mostra os parcelados do cartão, o extrato e os totais do mês, e guarda tudo num arquivo só, `box-flow.json`, trancado com senha. Abrir esse arquivo é o único jeito de importar dados; as credenciais da Pluggy também podem ser digitadas no app. Ainda sem o saldo previsto. As decisões estão em [docs/design.md](docs/design.md).
 
 ## O que o MVP vai fazer
 1. **Extrato do mês** (mês do calendário) com cada lançamento classificado: categoria, valor fixo ou variável, avulso, parcelado ou recorrente, e etiquetas.

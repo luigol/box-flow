@@ -69,6 +69,7 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
     await phone.commitmentLinks.put({ txId: 't1', occurrenceKey: 'k1:2026-12' })
     await phone.commitmentUnlinks.put({ txId: 't9', commitmentId: 'k1' })
     await phone.skips.put({ key: 'k1:2027-01' })
+    await phone.ignoredSuggestions.put({ key: 'STREAMINGEXEMPLO|out', text: 'STREAMING EXEMPLO', direction: 'out' })
 
     const newPhone = freshDb()
     const fileContent = JSON.parse(JSON.stringify(await exportVault(phone))) as VaultPayload

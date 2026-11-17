@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
-import { DEFAULT_RULES, normalize, type Category, type ClassifyContext } from '../domain/category'
-import type { BankTransaction } from '../domain/bank'
+import { DEFAULT_RULES, normalize, searchText, type Category, type ClassifyContext } from '../domain/category'
+import { withoutInstallment, type BankTransaction } from '../domain/bank'
 import { db } from './instance'
 
 /** Categorias e contexto de classificação (suas regras, importadas, automáticas e marcações à mão). */
@@ -39,10 +39,7 @@ export async function clearManualCategory(txId: string): Promise<void> {
 export async function createUserRule(text: string, categoryId: string, origin?: BankTransaction): Promise<void> {
   await db.transaction('rw', [db.rules, db.classifications], async () => {
     await db.rules.add({ id: `user:${crypto.randomUUID()}`, source: 'user', text: text.trim(), categoryId, createdAt: new Date().toISOString() })
-    if (origin) {
-      const originText = [origin.description, origin.rawDescription, origin.merchant].filter(Boolean).map((s) => normalize(s!)).join('|')
-      if (originText.includes(normalize(text))) await db.classifications.delete(origin.id)
-    }
+    if (origin && searchText(origin).includes(normalize(text))) await db.classifications.delete(origin.id)
   })
 }
 
@@ -62,5 +59,5 @@ export async function renameCategory(id: string, name: string): Promise<void> {
 
 /** Sugestão de texto para "aplicar a todos": a descrição sem o "NN/NN" da parcela. */
 export function suggestRuleText(tx: BankTransaction): string {
-  return tx.description.replace(/\s*\d{1,2}\/\d{1,2}\s*$/, '').replace(/\s+/g, ' ').trim()
+  return withoutInstallment(tx.description)
 }

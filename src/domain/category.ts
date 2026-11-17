@@ -102,8 +102,7 @@ export function classify(tx: BankTransaction, account: BankAccount, ctx: Classif
   // Ligado a um compromisso: a categoria dele vence as regras (decisão Q19 do grill).
   const fromCommitment = ctx.commitmentCategory?.get(tx.id)
   if (fromCommitment) return fromCommitment
-  // Separados por "|" para um trecho não casar juntando o fim de um texto com o começo de outro.
-  const text = [tx.description, tx.rawDescription, tx.merchant].filter(Boolean).map((s) => normalize(s!)).join('|')
+  const text = searchText(tx)
   for (const source of SOURCE_PRIORITY) {
     const candidates = ctx.rules.filter((r) => r.source === source && matches(r, tx, account, text))
     // Entre as suas regras, a mais recente é uma correção das anteriores.
@@ -123,6 +122,14 @@ function matches(rule: Rule, tx: BankTransaction, account: BankAccount, text: st
   if (rule.accountKind && rule.accountKind !== account.kind) return false
   if (rule.direction && rule.direction !== (tx.amount > 0 ? 'in' : 'out')) return false
   return true
+}
+
+/**
+ * Onde se procura o texto de uma regra ou de um compromisso: descrição, texto original e estabelecimento, normalizados.
+ * Separados por "|" para um trecho não casar juntando o fim de um texto com o começo de outro.
+ */
+export function searchText(tx: BankTransaction): string {
+  return [tx.description, tx.rawDescription, tx.merchant].filter(Boolean).map((s) => normalize(s!)).join('|')
 }
 
 /**

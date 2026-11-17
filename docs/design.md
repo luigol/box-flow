@@ -73,7 +73,7 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 **Tipos**
 - **Recorrente** (mensal ou anual), de saída ou de entrada (ex.: salário): categoria, valor, dia, conta e, opcional, o texto do banco que o identifica.
 - **Parcelado com pessoa**: pessoa, motivo e categoria, valor da parcela, total de parcelas, quantas já foram pagas e dia do mês. Cada parcela paga é gasto na categoria (o mês é quando o dinheiro sai); "quanto devo a cada pessoa" é a soma das parcelas que faltam.
-- **Parcelado do cartão**: reconhecido sozinho a partir do banco (descrição sem "NN/NN" + total de parcelas + data da compra), só para consulta, com andamento e quanto falta. Não gera previstos: o banco já manda as parcelas futuras.
+- **Parcelado do cartão**: reconhecido sozinho a partir do banco (descrição sem "NN/NN" + total de parcelas + data da compra), só para consulta, com andamento e quanto falta. Não gera previstos: o banco já manda as parcelas futuras (conferido em 17/11/2026 em cartões de dois bancos: todas as parcelas futuras chegam como pendentes, cada uma com o mês da fatura prevista).
 
 **Valor previsto**
 - Por padrão, o **valor digitado pelo usuário**; opção de usar a **média dos últimos 3 meses realizados** quando não se sabe.
@@ -107,6 +107,19 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 - Um lançamento ligado a vários previstos conta, em cada um, o valor esperado.
 - "Pix para pessoa" (sugerido em vez de automático) vem marcado quando o outro lado do lançamento escolhido é pessoa: a tradução guarda só o **tipo** do documento (CPF → pessoa, CNPJ → empresa), nunca o número.
 - "Vincular ao extrato" liga também o histórico dos últimos 12 meses; meses antes do início só aparecem se tiveram pagamento.
+
+**Parcelados do cartão** (`src/domain/installments.ts`)
+- Uma parcela está paga quando o dinheiro dela já saiu (regra do mês do cartão). Pagas = total de parcelas − parcelas que ainda vão sair: assim, numa compra antiga, as primeiras parcelas que já saíram do histórico contam como pagas.
+- Quanto falta = soma das parcelas que ainda vão sair. A compra quitada some da lista. A que termina antes vem primeiro.
+
+**Sugestões** (`src/domain/suggestions.ts`), calibradas com os dados reais em 17/11/2026
+- Mesmo texto do banco (sem "NN/NN") e mesmo sentido, nos últimos 6 meses contando o atual.
+- Compara o **total de cada mês** com o valor típico (a mediana dos totais): bastam **3 meses até 25%** do típico. Um mês com desconto ou com cobrança dupla não derruba a sugestão. O valor sugerido é o típico.
+- No máximo **2 lançamentos por mês**, em média: corridas e mercado ficam de fora.
+- Precisa ter aparecido **neste mês ou no anterior**: assinatura cancelada não vira sugestão.
+- Ficam de fora: transferências, parcelas do cartão, lançamentos já ligados a um compromisso e os que contêm o texto do banco de um compromisso.
+- "Criar" abre o formulário preenchido a partir do lançamento mais recente, com o valor típico e a categoria dele, e liga o histórico (como "Vincular ao extrato"). "Ignorar" é guardado pela chave texto + sentido, vai no `box-flow.json` e se desfaz em Ajustes → Sugestões ignoradas.
+- Nos dados reais, sem nenhum compromisso, o critério acha os recorrentes com texto (assinaturas, contador, Pix mensais), com um falso (corridas de um app que aparecem poucas vezes por mês). Salário recebido em 3 ou mais Pix por mês não é sugerido: cria-se pelo formulário.
 
 Fora desta etapa: saldo pré e pós-pago (usa os compromissos) e contas de pessoa.
 

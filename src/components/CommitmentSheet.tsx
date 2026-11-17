@@ -6,6 +6,7 @@ import { deleteCommitment, endCommitment, saveCommitment } from '../db/commitmen
 import { db } from '../db/instance'
 import { linkTransaction, nearestOccurrenceKey } from '../db/reconciliation'
 import type { BankTransaction } from '../domain/bank'
+import type { Cents } from '../domain/card'
 import { categoryName, TRANSFER } from '../domain/category'
 import { firstMonth, type Commitment } from '../domain/commitment'
 import { moneyInput, parseMoney } from '../lib/format'
@@ -22,11 +23,13 @@ interface CommitmentSheetProps {
   fromTx?: BankTransaction
   /** Categoria atual do lançamento de origem. */
   fromCategoryId?: string
+  /** Valor sugerido, positivo, no lugar do valor do lançamento de origem (o valor típico de uma sugestão). */
+  fromAmount?: Cents
   onClose: () => void
 }
 
 /** Criar ou editar um compromisso (docs/design.md, "Compromisso"). */
-export function CommitmentSheet({ commitment, fromTx, fromCategoryId, onClose }: CommitmentSheetProps) {
+export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount, onClose }: CommitmentSheetProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const categories = useLiveQuery(() => db.categories.toArray(), [])
@@ -39,7 +42,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, onClose }:
   const [person, setPerson] = useState(existing?.kind === 'installment' ? existing.person : '')
   const [categoryId, setCategoryId] = useState(existing?.categoryId ?? fromCategoryId ?? '')
   const [amountText, setAmountText] = useState(
-    existing ? moneyInput(existing.amount, locale) : fromTx ? moneyInput(Math.abs(fromTx.amount), locale) : '',
+    existing ? moneyInput(existing.amount, locale) : fromTx ? moneyInput(fromAmount ?? Math.abs(fromTx.amount), locale) : '',
   )
   const [amountMode, setAmountMode] = useState<Commitment['amountMode']>(existing?.amountMode ?? 'fixed')
   const [frequency, setFrequency] = useState(existing?.kind === 'recurring' ? existing.frequency : 'monthly')
