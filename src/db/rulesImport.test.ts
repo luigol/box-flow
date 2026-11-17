@@ -25,28 +25,28 @@ describe('importRules: arquivo de regras', () => {
     const db = freshDb()
     const file = rulesFile([
       { text: 'PADARIA EXEMPLO', category: 'alimentacao' },
-      { text: 'CLINICA EXEMPLO', category: 'Fisioterapia' },
+      { text: 'PETSHOP EXEMPLO', category: 'Pet' },
     ])
 
     const result = await importRules(db, file)
 
     expect({ result, rules: await storedRules(db) }).toEqual({
       result: { imported: 2, categoriesCreated: 1, problems: [] },
-      rules: ['PADARIA EXEMPLO → Alimentação', 'CLINICA EXEMPLO → Fisioterapia'],
+      rules: ['PADARIA EXEMPLO → Alimentação', 'PETSHOP EXEMPLO → Pet'],
     })
   })
 
   it('importar de novo substitui as regras importadas, sem duplicar categorias', async () => {
     const db = freshDb()
-    await importRules(db, rulesFile([{ text: 'CLINICA EXEMPLO', category: 'Fisioterapia' }, { text: 'X', category: 'Lazer' }]))
+    await importRules(db, rulesFile([{ text: 'PETSHOP EXEMPLO', category: 'Pet' }, { text: 'X', category: 'Lazer' }]))
 
-    const second = await importRules(db, rulesFile([{ text: 'CLINICA NOVA', category: 'Fisioterapia' }]))
+    const second = await importRules(db, rulesFile([{ text: 'PETSHOP NOVO', category: 'Pet' }]))
 
     expect({
       categoriesCreated: second.categoriesCreated,
       rules: await storedRules(db),
-      fisioterapias: (await db.categories.toArray()).filter((c) => c.name === 'Fisioterapia').length,
-    }).toEqual({ categoriesCreated: 0, rules: ['CLINICA NOVA → Fisioterapia'], fisioterapias: 1 })
+      pets: (await db.categories.toArray()).filter((c) => c.name === 'Pet').length,
+    }).toEqual({ categoriesCreated: 0, rules: ['PETSHOP NOVO → Pet'], pets: 1 })
   })
 
   it('linhas com problema são avisadas pelo número e ignoradas; o resto entra', async () => {
