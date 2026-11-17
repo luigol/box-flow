@@ -34,7 +34,7 @@ export function App() {
 
   const screens: Record<Tab, ReactElement> = {
     statement: <Statement month={month} onMonthChange={setMonth} onOpenBanks={openBanks} />,
-    commitments: <Commitments month={month} onMonthChange={setMonth} />,
+    commitments: <Commitments />,
     balance: <Balance month={month} onMonthChange={setMonth} />,
     settings:
       settingsPage === 'banks' ? (

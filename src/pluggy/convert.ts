@@ -62,12 +62,14 @@ export function fromPluggyAccount(raw: PluggyAccount): BankAccount {
 
 /** Fatura: vencimento e pagamentos são "só o dia", gravados como meia-noite UTC; não passam por fuso. */
 export function fromPluggyBill(raw: PluggyBill): CardBill {
-  return {
+  const bill: CardBill = {
     id: raw.id,
     dueDate: raw.dueDate.slice(0, 10),
     total: toCents(raw.totalAmount),
     payments: (raw.payments ?? []).map((p) => ({ date: p.paymentDate.slice(0, 10), amount: toCents(p.amount) })),
   }
+  if (raw.billClosingDate) bill.closingDate = raw.billClosingDate.slice(0, 10)
+  return bill
 }
 
 /** Reais → centavos inteiros, arredondando frações (fatura em dólar pode vir com 4 casas). */

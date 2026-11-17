@@ -2,6 +2,7 @@ import Dexie, { type DexieOptions, type EntityTable, type Transaction } from 'de
 import type { BankAccount, BankTransaction } from '../domain/bank'
 import type { CardBill } from '../domain/card'
 import { DEFAULT_CATEGORIES, type Category, type Rule } from '../domain/category'
+import type { Commitment } from '../domain/commitment'
 
 export interface StoredBill extends CardBill {
   accountId: string
@@ -48,6 +49,7 @@ export class BoxFlowDb extends Dexie {
   categories!: EntityTable<Category, 'id'>
   rules!: EntityTable<Rule, 'id'>
   classifications!: EntityTable<ManualClassification, 'txId'>
+  commitments!: EntityTable<Commitment, 'id'>
 
   constructor(name = 'box-flow', options?: DexieOptions) {
     super(name, options)
@@ -61,6 +63,7 @@ export class BoxFlowDb extends Dexie {
     this.version(2)
       .stores({ categories: 'id', rules: 'id, source', classifications: 'txId' })
       .upgrade(seedCategories)
+    this.version(3).stores({ commitments: 'id' })
     // Banco criado do zero (sem passar pelo upgrade): também recebe as categorias padrão.
     this.on('populate', seedCategories)
   }

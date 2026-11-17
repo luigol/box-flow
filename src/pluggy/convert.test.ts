@@ -117,6 +117,7 @@ describe('fromPluggyBill: tradução de uma fatura', () => {
     expect(bill).toEqual({
       id: 'b1',
       dueDate: '2026-11-15',
+      closingDate: '2026-11-08',
       total: 31250,
       payments: [{ date: '2026-11-12', amount: 31250 }],
     })

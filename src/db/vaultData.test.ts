@@ -1,6 +1,7 @@
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import type { BankTransaction } from '../domain/bank'
+import type { Commitment } from '../domain/commitment'
 import type { PluggyTransaction } from '../pluggy/types'
 import { syncConnection } from '../sync/sync'
 import { BoxFlowDb } from './db'
@@ -38,6 +39,11 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
     await phone.categories.put({ id: 'c:pet', name: 'Pet' })
     await phone.rules.put({ id: 'user:1', source: 'user', text: 'PETSHOP', categoryId: 'c:pet', createdAt: '2026-11-17T12:00:00.000Z' })
     await phone.classifications.put({ txId: 't1', categoryId: 'c:pet' })
+    const rent: Commitment = {
+      id: 'k1', kind: 'recurring', name: 'Aluguel', direction: 'out', amount: 80_000, amountMode: 'fixed',
+      frequency: 'monthly', day: 10, start: { year: 2026, month: 12 },
+    }
+    await phone.commitments.put(rent)
 
     const newPhone = freshDb()
     const fileContent = JSON.parse(JSON.stringify(await exportVault(phone))) as VaultPayload

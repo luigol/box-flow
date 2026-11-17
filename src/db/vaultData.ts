@@ -3,7 +3,16 @@ import { importRuleEntries, type ImportResult, type RulesFileRule } from './rule
 import { readPluggySettings, writePluggySettings } from './settings'
 
 /** Tabelas que vão no backup (as configurações vão em `pluggy`). */
-const BACKUP_TABLES = ['accounts', 'transactions', 'bills', 'connections', 'categories', 'rules', 'classifications'] as const
+const BACKUP_TABLES = [
+  'accounts',
+  'transactions',
+  'bills',
+  'connections',
+  'categories',
+  'rules',
+  'classifications',
+  'commitments',
+] as const
 
 /**
  * Conteúdo do arquivo trancado (docs/design.md, "Arquivo trancado"). Todas as partes são opcionais:

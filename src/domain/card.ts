@@ -9,6 +9,8 @@ export type Cents = number
 export interface CardBill {
   id: string
   dueDate: IsoDate
+  /** Dia em que a fatura fechou. Serve para prever em qual fatura cai uma cobrança futura. */
+  closingDate?: IsoDate
   total: Cents
   payments: { date: IsoDate; amount: Cents }[]
 }

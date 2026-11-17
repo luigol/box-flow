@@ -40,6 +40,8 @@ export interface PluggyBill {
   id: string
   /** Só o dia, gravado como meia-noite UTC (ex.: 2026-11-10T00:00:00.000Z). */
   dueDate: string
+  /** Só o dia, como `dueDate`. */
+  billClosingDate?: string | null
   totalAmount: number
   payments?: { paymentDate: string; amount: number }[] | null
   [ignored: string]: unknown
