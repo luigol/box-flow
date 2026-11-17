@@ -8,7 +8,7 @@ App de finanças pessoais **open source** e **local-first**. Ele puxa as transa�
 - **Sem loja de apps.** No iPhone ou no Android, abra o site e use "Adicionar à Tela de Início".
 - **Cada pessoa usa a própria conta da Pluggy.** O app não tem credenciais de ninguém embutidas.
 
-> **Status:** em construção. Por enquanto só o esqueleto: abas, troca de mês, idioma e visual. As decisões estão em [docs/design.md](docs/design.md).
+> **Status:** em construção. Já conecta à Pluggy (Ajustes → Bancos), guarda os lançamentos no aparelho e mostra o extrato do mês. Ainda sem categorias, compromissos e saldo. As decisões estão em [docs/design.md](docs/design.md).
 
 ## O que o MVP vai fazer
 1. **Extrato do mês** (mês do calendário) com cada lançamento classificado: categoria, valor fixo ou variável, avulso, parcelado ou recorrente, e etiquetas.

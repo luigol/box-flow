@@ -81,8 +81,21 @@ Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex
 - Um lançamento do banco pode corresponder a **vários** lançamentos manuais (ex.: três pagamentos combinados que saíram num Pix só).
 - Transferências internas não são gasto: pagamento de fatura, aplicação e resgate de cofrinho, transferência entre contas próprias.
 
+## Atualização (sincronização)
+- Ao abrir o app e pelo botão **Atualizar**, o app busca tudo o que a Pluggy devolve de cada conexão (~12 meses) e grava de uma vez: se a Pluggy falhar no meio, nada do que estava guardado muda. Uma conexão com erro não impede as outras.
+- **Período aberto** = mês atual + mês anterior + tudo o que está pendente (fatura aberta, parcelas futuras). Nele, o aparelho fica igual ao banco: o que mudou é atualizado e o que sumiu é removido (resolve a compra pendente que volta liquidada com outro `id`).
+- **Período fechado** = o resto. Fica guardado e não muda mais, inclusive a classificação feita pelo usuário. Assim o histórico com mais de 12 meses, que a Pluggy não devolve, continua no aparelho.
+- **Lançamento novo sempre entra**, com qualquer data (banco que sincroniza atrasado).
+- Implementado em `src/sync/sync.ts` (`syncConnection`).
+- **Em aberto:** ao renovar o consentimento, o `itemId` e talvez os `id`s das contas mudam. Sem tratamento, as contas apareceriam duplicadas. Resolver antes do primeiro vencimento de consentimento.
+
+## Configuração no app
+- Em **Ajustes → Bancos** o usuário cola `clientId`, `clientSecret` e os `itemId`s (um por linha). Ficam só no aparelho.
+- A tela mostra, por conexão: as contas, quando a Pluggy leu o banco, a próxima leitura, o vencimento do consentimento (aviso a 30 dias) e o erro da última atualização.
+
 ## Mês e saldo
 - **Mês = mês do calendário.**
+- **Extrato do mês:** na conta, pelo dia; no cartão, pelo mês em que o dinheiro sai. Cartão sem nenhuma fatura fechada ainda: o mês previsto pelo banco ou, sem previsão, o da compra. Mais recente primeiro. Sem totais até existirem as regras de transferência (pagamento de fatura contaria em dobro). Implementado em `src/domain/statement.ts`.
 - **Pré-pago**: saldo atual das contas − tudo que já está comprometido (faturas abertas, parcelas futuras, o que **eu devo** a pessoas, previstos de saída). Não conta receita prevista nem o que outras pessoas me devem. Objetivo: não comprometer o salário do futuro.
   - O comprometido no cartão é a **soma das transações**, item a item. O `balance` do banco aparece ao lado, com a diferença.
 - **Pós-pago**: pré-pago + receitas previstas + o que pessoas me devem.

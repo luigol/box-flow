@@ -1,29 +1,14 @@
-import type { ReactNode } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { useTranslation } from 'react-i18next'
+import { Group, LinkRow, Row } from '../components/List'
 import { ScreenHeader } from '../components/ScreenHeader'
+import { loadPluggySettings } from '../db/instance'
 import { currentLanguage, LANGUAGES, setLanguage, type Language } from '../i18n'
 
-/** Lista agrupada como no app Ajustes do iPhone. */
-function Group({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="mb-7">
-      <h2 className="px-4 pb-1.5 text-[13px] text-ink-2 uppercase tracking-normal">{title}</h2>
-      <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">{children}</div>
-    </section>
-  )
-}
-
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex min-h-11 items-center justify-between gap-4 px-4 py-2.5">
-      <span>{label}</span>
-      <span className="text-ink-2">{children}</span>
-    </div>
-  )
-}
-
-export function Settings() {
+export function Settings({ onOpenBanks }: { onOpenBanks: () => void }) {
   const { t } = useTranslation()
+  const pluggy = useLiveQuery(loadPluggySettings, [])
+  const connectionCount = pluggy?.itemIds.length ?? 0
 
   return (
     <>
@@ -45,7 +30,11 @@ export function Settings() {
         </Row>
       </Group>
       <Group title={t('settings.data')}>
-        <Row label={t('settings.banks')}>{t('settings.soon')}</Row>
+        <LinkRow
+          label={t('settings.banks')}
+          value={connectionCount ? t('settings.banksConnected', { count: connectionCount }) : t('settings.banksNotConfigured')}
+          onClick={onOpenBanks}
+        />
         <Row label={t('settings.backup')}>{t('settings.soon')}</Row>
       </Group>
       <Group title={t('settings.about')}>
