@@ -5,7 +5,7 @@ import type { BoxFlowDb } from './db'
  * Formato do arquivo de regras (docs/design.md, "Arquivo de regras"):
  * { "format": "box-flow-rules", "version": 1, "rules": [{ "text": "DL*99", "category": "Transporte por app" }] }
  */
-interface RulesFileRule {
+export interface RulesFileRule {
   text?: unknown
   category?: unknown
 }
@@ -42,7 +42,12 @@ function parse(fileText: string): RulesFileRule[] {
  * Arquivo recusado → `RulesFileError`, sem alterar nada.
  */
 export async function importRules(db: BoxFlowDb, fileText: string): Promise<ImportResult> {
-  const file = { rules: parse(fileText) }
+  return importRuleEntries(db, parse(fileText))
+}
+
+/** Grava regras no formato do arquivo (texto + nome da categoria) como `import`. Usada também pelo cofre. */
+export async function importRuleEntries(db: BoxFlowDb, entries: RulesFileRule[]): Promise<ImportResult> {
+  const file = { rules: entries }
   const result: ImportResult = { imported: 0, categoriesCreated: 0, problems: [] }
 
   await db.transaction('rw', [db.categories, db.rules], async () => {

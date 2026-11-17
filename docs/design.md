@@ -90,7 +90,7 @@ Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex
 - **Em aberto:** ao renovar o consentimento, o `itemId` e talvez os `id`s das contas mudam. Sem tratamento, as contas apareceriam duplicadas. Resolver antes do primeiro vencimento de consentimento.
 
 ## Configuração no app
-- Em **Ajustes → Bancos** o usuário cola `clientId`, `clientSecret` e os `itemId`s (um por linha). Ficam só no aparelho.
+- Em **Ajustes → Bancos** o usuário cola `clientId`, `clientSecret` e os `itemId`s (um por linha), ou abre o arquivo trancado que já traz tudo. Ficam só no aparelho.
 - A tela mostra, por conexão: as contas, quando a Pluggy leu o banco, a próxima leitura, o vencimento do consentimento (aviso a 30 dias) e o erro da última atualização.
 
 ## Mês e saldo
@@ -106,7 +106,21 @@ Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex
 - Credenciais da Pluggy ficam no armazenamento do app. No MVP, quem protege é o bloqueio do celular.
 - **CSP restrita** por `<meta>`: `connect-src` só para `https://api.pluggy.ai`, sem scripts nem estilos de terceiros. Mesmo um código malicioso não consegue mandar o segredo para outro lugar.
 - **Dependências travadas:** versões exatas no `package.json`, lockfile no repositório, `npm ci` no GitHub Actions e o mínimo de dependências.
-- Backup: arquivo exportado pelo usuário, **criptografado com senha**, **sem as credenciais**.
+- Backup: arquivo exportado pelo usuário, **trancado com senha**, com tudo: credenciais, categorias, regras e lançamentos. (Revisto em 17/11/2026: antes era sem as credenciais; trancado, o arquivo é um jeito mais seguro de levar o segredo ao celular do que copiar e colar.)
+
+## Arquivo trancado (cofre)
+- Um único formato serve para **configurar** (credenciais + regras, gerado por um script do usuário) e para **backup** (exportado pelo app, com todas as tabelas). Em Ajustes → Arquivos e backup: **Abrir arquivo…** (aceita também o arquivo de regras aberto) e **Exportar backup…**.
+- **Criptografia** do próprio navegador (Web Crypto), sem biblioteca: chave por **PBKDF2-SHA256 com 600 mil repetições** e sal aleatório (cada tentativa de adivinhar a senha fica lenta) e conteúdo cifrado com **AES-256-GCM** (qualquer alteração no arquivo é detectada).
+- **Senha escolhida pelo usuário, mínimo de 16 caracteres** (sugestão: frase de 4 palavras). Não há limite de tentativas: quem copia o arquivo testa senhas fora do app; a proteção é a tentativa lenta + senha forte.
+- **Abrir um backup substitui** os dados do aparelho e pede confirmação antes. Em seguida, a atualização segue a regra de sempre: o período aberto fica igual ao banco; o fechado fica como veio do backup.
+```json
+{ "format": "box-flow-vault", "version": 1,
+  "kdf": { "name": "PBKDF2", "hash": "SHA-256", "iterations": 600000, "salt": "<base64>" },
+  "cipher": { "name": "AES-GCM", "iv": "<base64>" },
+  "data": "<base64: JSON cifrado>" }
+```
+- Conteúdo (todas as partes opcionais): `pluggy` (`clientId`, `clientSecret`, `itemIds`); `rules` (formato do arquivo de regras, gravadas como importadas); `tables` (cópia das tabelas do app). A senha é normalizada em NFC antes de virar chave.
+- Implementado em `src/lib/vault.ts` e `src/db/vaultData.ts`.
 
 ## Categorias padrão
 Transporte por app · Transporte · Alimentação · Lazer · Saúde · Presente · Roupa · Passagem · Moradia · Contabilidade · Imposto · Assinaturas · Empréstimo · Salário · Transferência. O usuário cria e renomeia (apagar: depois). Os nomes padrão existem em português e inglês; renomeada, vale o nome do usuário.
