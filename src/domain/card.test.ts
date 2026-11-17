@@ -75,6 +75,13 @@ describe('cashOutDate: dia em que o dinheiro de uma compra no cartão sai', () =
     expect(cashOutDate({ billForecastMonth: '2027-03' }, bills)).toBe('2027-03-15')
   })
 
+  it('vencimento num dia que o mês não tem: vale o último dia do mês', () => {
+    const bills = [bill({ id: 'b0', dueDate: '2026-10-31' }), bill({ id: 'b1', dueDate: '2026-12-31' })]
+    expect(cashOutDate({ billForecastMonth: '2027-02' }, bills)).toBe('2027-02-28')
+    expect(cashOutDate({ billForecastMonth: '2028-02' }, bills)).toBe('2028-02-29')
+    expect(cashOutDate({ billForecastMonth: '2027-04' }, bills)).toBe('2027-04-30')
+  })
+
   it('compra lançada à mão, antes de o banco sincronizar: sai no vencimento da fatura aberta', () => {
     // A última fatura fechada vence em novembro; a aberta é a de dezembro.
     const bills = [

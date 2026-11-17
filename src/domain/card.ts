@@ -27,11 +27,17 @@ export interface CardCharge {
 export function cashOutDate(charge: CardCharge, bills: CardBill[]): IsoDate {
   if (!charge.billId) {
     const month = charge.billForecastMonth ?? openBillMonth(bills)
-    return `${month}-${usualDueDay(bills)}`
+    return dayInMonth(month, usualDueDay(bills))
   }
   const bill = bills.find((b) => b.id === charge.billId)
   if (!bill) throw new Error(`Fatura ${charge.billId} não encontrada`)
   return paidOffDate(bill) ?? bill.dueDate
+}
+
+/** Data no mês `AAAA-MM` com o dia `DD`; se o mês não tem esse dia (31/02), o último dia do mês. */
+function dayInMonth(month: string, day: string): IsoDate {
+  const lastDay = new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate()
+  return `${month}-${String(Math.min(Number(day), lastDay)).padStart(2, '0')}`
 }
 
 /** Mês (AAAA-MM) da fatura aberta: o seguinte ao vencimento da última fatura fechada. */
