@@ -1,10 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, EmptyState } from '../components/Card'
+import { CategorySheet } from '../components/CategorySheet'
 import { MonthHeader } from '../components/ScreenHeader'
+import { useClassification } from '../db/classification'
 import { db, loadPluggySettings } from '../db/instance'
-import { monthStatement, type StatementEntry } from '../domain/statement'
+import { categoryName, classify, TRANSFER, type Category } from '../domain/category'
+import { monthStatement, monthTotals, type StatementEntry } from '../domain/statement'
 import { formatDateTime, formatDay, formatMoney } from '../lib/format'
 import type { YearMonth } from '../lib/month'
 import { syncNow, useSyncRunning } from '../sync/runSync'
@@ -26,7 +29,14 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
     }),
     [],
   )
+  const classification = useClassification()
+  const [editing, setEditing] = useState<StatementEntry | null>(null)
+
   const entries = useMemo(() => (data ? monthStatement(month, data) : []), [data, month])
+  const categoryOf = useMemo(() => {
+    const ctx = classification?.ctx
+    return (entry: StatementEntry) => (ctx ? classify(entry.tx, entry.account, ctx) : undefined)
+  }, [classification])
 
   let body
   if (settings === null) {
@@ -42,7 +52,12 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
   } else if (data && entries.length === 0) {
     body = <EmptyState title={t('statement.emptyTitle')} body={t('statement.emptyBody')} />
   } else {
-    body = <DayGroups entries={entries} />
+    body = (
+      <>
+        <Totals entries={entries} categoryOf={categoryOf} />
+        <DayGroups entries={entries} categories={classification?.categories ?? []} categoryOf={categoryOf} onSelect={setEditing} />
+      </>
+    )
   }
 
   return (
@@ -50,6 +65,14 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
       <MonthHeader eyebrow={t('tabs.statement')} month={month} onChange={onMonthChange} />
       {settings && <SyncStatus />}
       {body}
+      {editing && classification && (
+        <CategorySheet
+          entry={editing}
+          categories={classification.categories}
+          ctx={classification.ctx}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </>
   )
 }
@@ -76,8 +99,45 @@ function SyncStatus() {
   )
 }
 
+/** Entradas, saídas e resultado do mês, sem transferências entre suas contas. */
+function Totals({ entries, categoryOf }: { entries: StatementEntry[]; categoryOf: (e: StatementEntry) => string | undefined }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
+  const totals = monthTotals(entries, categoryOf)
+  const uncategorized = entries.filter((e) => !categoryOf(e)).length
+
+  return (
+    <Card className="mb-6">
+      <div className="grid grid-cols-3 gap-2">
+        <Figure label={t('statement.income')} value={formatMoney(totals.income, locale)} tone="text-positive" />
+        <Figure label={t('statement.expense')} value={formatMoney(totals.expense, locale)} />
+        <Figure label={t('statement.net')} value={formatMoney(totals.net, locale, { signed: true })} tone={totals.net > 0 ? 'text-positive' : ''} />
+      </div>
+      {uncategorized > 0 && (
+        <p className="mt-3 text-[13px] tracking-normal text-ink-2">{t('statement.uncategorizedCount', { count: uncategorized })}</p>
+      )}
+    </Card>
+  )
+}
+
+function Figure({ label, value, tone = '' }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[13px] tracking-normal text-ink-2">{label}</p>
+      <p className={`truncate text-[17px] font-semibold tabular-nums ${tone}`}>{value}</p>
+    </div>
+  )
+}
+
+interface DayGroupsProps {
+  entries: StatementEntry[]
+  categories: Category[]
+  categoryOf: (e: StatementEntry) => string | undefined
+  onSelect: (entry: StatementEntry) => void
+}
+
 /** Lançamentos agrupados por dia, do mais recente para o mais antigo. */
-function DayGroups({ entries }: { entries: StatementEntry[] }) {
+function DayGroups({ entries, categories, categoryOf, onSelect }: DayGroupsProps) {
   const { i18n } = useTranslation()
   const days: { date: string; entries: StatementEntry[] }[] = []
   for (const entry of entries) {
@@ -85,6 +145,7 @@ function DayGroups({ entries }: { entries: StatementEntry[] }) {
     if (last?.date === entry.tx.date) last.entries.push(entry)
     else days.push({ date: entry.tx.date, entries: [entry] })
   }
+  const byId = new Map(categories.map((c) => [c.id, c]))
 
   return (
     <div className="space-y-6">
@@ -92,9 +153,18 @@ function DayGroups({ entries }: { entries: StatementEntry[] }) {
         <section key={day.date}>
           <h2 className="px-1 pb-1.5 text-[13px] font-semibold tracking-normal text-ink-2">{formatDay(day.date, i18n.language)}</h2>
           <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-2xl bg-card">
-            {day.entries.map((entry) => (
-              <EntryRow key={entry.tx.id} entry={entry} />
-            ))}
+            {day.entries.map((entry) => {
+              const categoryId = categoryOf(entry)
+              return (
+                <EntryRow
+                  key={entry.tx.id}
+                  entry={entry}
+                  category={categoryId ? byId.get(categoryId) : undefined}
+                  isTransfer={categoryId === TRANSFER}
+                  onSelect={() => onSelect(entry)}
+                />
+              )
+            })}
           </div>
         </section>
       ))}
@@ -102,7 +172,14 @@ function DayGroups({ entries }: { entries: StatementEntry[] }) {
   )
 }
 
-function EntryRow({ entry: { tx, account } }: { entry: StatementEntry }) {
+interface EntryRowProps {
+  entry: StatementEntry
+  category: Category | undefined
+  isTransfer: boolean
+  onSelect: () => void
+}
+
+function EntryRow({ entry: { tx, account }, category, isTransfer, onSelect }: EntryRowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const details = [
@@ -113,14 +190,20 @@ function EntryRow({ entry: { tx, account } }: { entry: StatementEntry }) {
   ].filter(Boolean)
 
   return (
-    <div className="flex items-start gap-3 px-4 py-2.5">
+    <button type="button" onClick={onSelect} className="flex w-full items-start gap-3 px-4 py-2.5 text-left active:bg-card-pressed">
       <div className="min-w-0 flex-1">
         <p className="truncate">{tx.merchant ?? tx.description}</p>
-        <p className="truncate text-[13px] tracking-normal text-ink-2">{details.join(' · ')}</p>
+        <p className="truncate text-[13px] tracking-normal text-ink-2">
+          <span className={category ? 'text-ink' : 'text-warning'}>
+            {category ? categoryName(category, locale) : t('statement.uncategorized')}
+          </span>
+          {' · '}
+          {details.join(' · ')}
+        </p>
       </div>
-      <p className={`shrink-0 tabular-nums ${tx.amount > 0 ? 'text-positive' : ''}`}>
+      <p className={`shrink-0 tabular-nums ${isTransfer ? 'text-ink-2' : tx.amount > 0 ? 'text-positive' : ''}`}>
         {formatMoney(tx.amount, locale, { signed: tx.amount > 0 })}
       </p>
-    </div>
+    </button>
   )
 }

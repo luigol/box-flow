@@ -1,6 +1,7 @@
 import type { YearMonth } from '../lib/month'
 import type { BankAccount, BankTransaction } from './bank'
 import { cashOutDate, type CardBill } from './card'
+import { TRANSFER } from './category'
 
 export interface StatementEntry {
   tx: BankTransaction
@@ -32,6 +33,26 @@ export function monthStatement(month: YearMonth, data: StatementData): Statement
     if (monthOf(tx, billsByAccount.get(account.id) ?? []) === prefix) entries.push({ tx, account })
   }
   return entries.sort((a, b) => b.tx.date.localeCompare(a.tx.date))
+}
+
+export interface MonthTotals {
+  income: number
+  /** Negativo. */
+  expense: number
+  net: number
+}
+
+/** Entradas, saídas e resultado dos lançamentos do mês. */
+export function monthTotals(entries: StatementEntry[], categoryOf: (entry: StatementEntry) => string | undefined): MonthTotals {
+  let income = 0
+  let expense = 0
+  for (const entry of entries) {
+    const { tx } = entry
+    if (categoryOf(entry) === TRANSFER) continue // dinheiro mudando de conta não é ganho nem gasto
+    if (tx.amount > 0) income += tx.amount
+    else expense += tx.amount
+  }
+  return { income, expense, net: income + expense }
 }
 
 /** Mês (AAAA-MM) em que o lançamento cai. */

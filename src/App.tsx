@@ -3,6 +3,7 @@ import { QuickAddSheet } from './components/QuickAddSheet'
 import { TabBar, type Tab } from './components/TabBar'
 import { currentMonth, type YearMonth } from './lib/month'
 import { BankSettings } from './screens/BankSettings'
+import { CategoriesSettings } from './screens/CategoriesSettings'
 import { Balance } from './screens/Balance'
 import { Commitments } from './screens/Commitments'
 import { Settings } from './screens/Settings'
@@ -13,7 +14,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>('statement')
   // O mês escolhido vale para Extrato, Compromissos e Saldo ao mesmo tempo.
   const [month, setMonth] = useState<YearMonth>(() => currentMonth())
-  const [settingsPage, setSettingsPage] = useState<'main' | 'banks'>('main')
+  const [settingsPage, setSettingsPage] = useState<'main' | 'banks' | 'categories'>('main')
   const [adding, setAdding] = useState(false)
 
   // Atualiza ao abrir o app (o Meu Pluggy lê os bancos a cada 24 h).
@@ -38,8 +39,10 @@ export function App() {
     settings:
       settingsPage === 'banks' ? (
         <BankSettings onBack={() => setSettingsPage('main')} />
+      ) : settingsPage === 'categories' ? (
+        <CategoriesSettings onBack={() => setSettingsPage('main')} />
       ) : (
-        <Settings onOpenBanks={() => setSettingsPage('banks')} />
+        <Settings onOpenBanks={() => setSettingsPage('banks')} onOpenCategories={() => setSettingsPage('categories')} />
       ),
   }
 

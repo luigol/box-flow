@@ -1,6 +1,7 @@
-import Dexie, { type DexieOptions, type EntityTable } from 'dexie'
+import Dexie, { type DexieOptions, type EntityTable, type Transaction } from 'dexie'
 import type { BankAccount, BankTransaction } from '../domain/bank'
 import type { CardBill } from '../domain/card'
+import { DEFAULT_CATEGORIES, type Category, type Rule } from '../domain/category'
 
 export interface StoredBill extends CardBill {
   accountId: string
@@ -26,6 +27,12 @@ export interface PluggySettings {
   itemIds: string[]
 }
 
+/** Categoria escolhida à mão para um lançamento. Vence qualquer regra. */
+export interface ManualClassification {
+  txId: string
+  categoryId: string
+}
+
 interface Setting {
   key: string
   value: unknown
@@ -38,6 +45,9 @@ export class BoxFlowDb extends Dexie {
   bills!: EntityTable<StoredBill, 'id'>
   connections!: EntityTable<Connection, 'itemId'>
   settings!: EntityTable<Setting, 'key'>
+  categories!: EntityTable<Category, 'id'>
+  rules!: EntityTable<Rule, 'id'>
+  classifications!: EntityTable<ManualClassification, 'txId'>
 
   constructor(name = 'box-flow', options?: DexieOptions) {
     super(name, options)
@@ -48,5 +58,14 @@ export class BoxFlowDb extends Dexie {
       connections: 'itemId',
       settings: 'key',
     })
+    this.version(2)
+      .stores({ categories: 'id', rules: 'id, source', classifications: 'txId' })
+      .upgrade(seedCategories)
+    // Banco criado do zero (sem passar pelo upgrade): também recebe as categorias padrão.
+    this.on('populate', seedCategories)
   }
+}
+
+async function seedCategories(tx: Transaction): Promise<void> {
+  await tx.table('categories').bulkPut(DEFAULT_CATEGORIES.map(({ id }) => ({ id })))
 }

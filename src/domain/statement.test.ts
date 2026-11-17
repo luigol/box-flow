@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { BankAccount, BankTransaction } from './bank'
 import type { CardBill } from './card'
-import { monthStatement } from './statement'
+import { TRANSFER } from './category'
+import { monthStatement, monthTotals, type StatementEntry } from './statement'
 
 // Dados inventados: o repositório é público.
 const checking: BankAccount = { id: 'acc1', itemId: 'item1', kind: 'checking', name: 'CONTA EXEMPLO', balance: 0 }
@@ -53,5 +54,23 @@ describe('monthStatement: lançamentos que caem num mês', () => {
     const ids = monthStatement(NOVEMBER, { accounts: [checking], transactions, bills: [] }).map((e) => e.tx.id)
 
     expect(ids).toEqual(['dia-21', 'dia-12', 'dia-03'])
+  })
+})
+
+describe('monthTotals: entradas, saídas e resultado do mês', () => {
+  const entry = (id: string, amount: number): StatementEntry => ({ tx: tx(id, { amount }), account: checking })
+  const noCategory = () => undefined
+
+  it('soma entradas e saídas e calcula o resultado', () => {
+    const entries = [entry('salario', 300_000), entry('mercado', -2_317), entry('farmacia', -10_000)]
+
+    expect(monthTotals(entries, noCategory)).toEqual({ income: 300_000, expense: -12_317, net: 287_683 })
+  })
+
+  it('transferências entre suas contas não entram', () => {
+    const entries = [entry('salario', 300_000), entry('fatura-sai', -50_000), entry('fatura-entra', 50_000), entry('mercado', -2_317)]
+    const categoryOf = (e: StatementEntry) => (e.tx.id.startsWith('fatura') ? TRANSFER : undefined)
+
+    expect(monthTotals(entries, categoryOf)).toEqual({ income: 300_000, expense: -2_317, net: 297_683 })
   })
 })
