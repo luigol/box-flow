@@ -30,7 +30,13 @@ GET  /bills?accountId={id}                         faturas do cartão: billClosi
 - `GET /items` (listar) → 401. O usuário informa os `itemId`s.
 - `GET /transactions` (v1) → 410, desativado. `/v2/transactions` **não aceita `pageSize`**; vem até 500 por página e `next` é uma *query string* (`?accountId=…&after=…`) a concatenar em `/v2/transactions`.
 - Histórico: ~12 meses (depende do banco).
-- **Sinal do valor depende da conta:** na conta corrente saída é negativa; no cartão compra é positiva e pagamento é negativo. Normalizar na entrada.
+- **Datas em UTC.** A data da transação, `purchaseDate` e `transactionDateTime` são momentos em UTC e precisam virar o dia em Brasília. Exemplo: a conta corrente marca o fim do dia 03/11 como `2026-11-04T02:59:59.999Z`; lida sem conversão, a transação cai um dia depois. Já `dueDate`, `billClosingDate` e `paymentDate` das faturas são "só o dia", gravados como meia-noite UTC: não passam por fuso. O fuso é **fixo em Brasília**, para que as datas não mudem com o celular em viagem.
+- **Moeda estrangeira:** em compra no exterior, `amount` vem na moeda original (ex.: USD 12) e o valor em reais vem em `amountInAccountCurrency` (ex.: R$ 66,37). O app usa o valor em reais e guarda o original para exibir.
+- **Paginação:** transações seguem o campo `next`; contas e faturas usam `page`/`totalPages`.
+- **Chave (`apiKey`)** dura 2 h: o app reaproveita e, se a Pluggy responder 401, faz login de novo e repete o pedido.
+- **Conexão:** `/items/{id}` traz `consentExpiresAt`, `lastUpdatedAt` e `nextAutoSyncAt` (próxima sincronização).
+- **O que o app guarda:** id, conta, dia, valor em centavos, descrição (e a original, se diferente), categoria do banco, estabelecimento, status, moeda original e os dados de cartão (parcela, data da compra, fatura). Nunca `paymentData`, que traz CPF de quem pagou e recebeu.
+- **Sinal do valor depende da conta:** na conta corrente saída é negativa; no cartão compra é positiva e pagamento é negativo. Normalizar na entrada pelo campo `type`, que é estável: `DEBIT` = saiu (negativo), `CREDIT` = entrou (positivo). No cartão, o `balance` da conta é o limite usado e vira saldo negativo.
 - `category` vem preenchida mesmo no uso gratuito (em inglês, às vezes errada). Serve de sugestão; a regra do usuário manda.
 - Parcelas: `creditCardMetadata.installmentNumber/totalInstallments`; **as parcelas futuras já vêm** como `PENDING`.
   - **O `date` de uma parcela muda.** Enquanto futura, é o último dia do mês (parcela 2/6 → 31/12). Depois de liquidada, vira a data da compra (as parcelas 1/3, 2/3 e 3/3 ficam todas com o mesmo `date`). Não usar `date` para pôr parcela no mês.
@@ -40,7 +46,8 @@ GET  /bills?accountId={id}                         faturas do cartão: billClosi
 - **Saldo:** na conta corrente, `balance` é o saldo disponível. No cartão, `balance` é o **limite usado** (fatura aberta + parcelas futuras), mas não bate no centavo com a soma das transações pendentes.
 - `connectToken` não é `itemId`; só serve para abrir o widget.
 - Consentimento dura 1 ano por banco (`consentExpiresAt`). Depois, o usuário reconecta e o `itemId` pode mudar: guardar transações pelo `id` delas.
-- **Em aberto:** o `id` de uma transação `PENDING` se mantém quando ela vira `POSTED`? Se não se mantiver, a importação precisa reconhecer a mesma compra pela descrição + valor + parcela + `transactionDateTime`.
+- **Em aberto:** o `id` de uma transação `PENDING` se mantém quando ela vira `POSTED`? Se não se mantiver, a importação precisa reconhecer a mesma compra pela descrição + valor + parcela + `transactionDateTime`. Observado: no cartão, a compra fica `PENDING` até a fatura **fechar**, então a resposta só aparece depois de um fechamento.
+- Implementado em `src/pluggy/client.ts` (conversa com a API) e `src/pluggy/convert.ts` (tradução para o formato do app).
 
 ## Modelo de domínio
 
