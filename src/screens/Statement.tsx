@@ -75,7 +75,7 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
       <Card className="px-6 py-10 text-center">
         <h2 className="text-[21px] font-semibold tracking-[0.011em]">{t('statement.notConfiguredTitle')}</h2>
         <p className="mt-1 text-[15px] text-ink-2">{t('statement.notConfiguredBody')}</p>
-        <button type="button" onClick={onOpenBanks} className="mt-5 rounded-full bg-accent px-5 py-2.5 text-white active:opacity-80">
+        <button type="button" onClick={onOpenBanks} className="mt-5 rounded-full bg-accent px-5 py-2.5 text-on-accent active:opacity-80">
           {t('statement.configure')}
         </button>
       </Card>
@@ -234,7 +234,7 @@ function DayGroups({ items, categories, categoryOf, onSelect, onSelectForecast }
       {days.map((day) => (
         <section key={day.date}>
           <h2 className="px-1 pb-1.5 text-[13px] font-semibold tracking-normal text-ink-2">{formatDay(day.date, i18n.language)}</h2>
-          <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-2xl bg-card">
+          <div className="inset-rows overflow-hidden rounded-block bg-card">
             {day.items.map((item) => {
               if (item.kind === 'forecast') {
                 return (

@@ -6,8 +6,8 @@ import { isVault, lockVault, MIN_PASSWORD_LENGTH, unlockVault, VaultError } from
 import { syncNow } from '../sync/runSync'
 import { Sheet } from './Sheet'
 
-const passwordInput = 'mt-1 w-full rounded-xl bg-card px-4 py-3 outline-none'
-const primary = 'rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80'
+const passwordInput = 'mt-1 w-full rounded-block bg-card px-4 py-3 outline-none'
+const primary = 'rounded-full bg-accent px-5 py-2.5 text-on-accent disabled:opacity-40 active:opacity-80'
 
 /**
  * Abrir o box-flow.json (trancado: pede a senha). É o único arquivo que o app abre.

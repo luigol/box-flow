@@ -45,8 +45,8 @@ export function OccurrenceSheet({ occurrence, commitment, onEdit, onClose }: Occ
 
       {suggestions && suggestions.some(Boolean) && (
         <section className="mt-4">
-          <h3 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2 uppercase">{t('link.suggestions')}</h3>
-          <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+          <h3 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2">{t('link.suggestions')}</h3>
+          <div className="inset-rows overflow-hidden rounded-block bg-card">
             {suggestions.map(
               (tx) =>
                 tx && (
@@ -68,7 +68,7 @@ export function OccurrenceSheet({ occurrence, commitment, onEdit, onClose }: Occ
         </section>
       )}
 
-      <div className="mt-4 divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+      <div className="mt-4 inset-rows overflow-hidden rounded-block bg-card">
         <button type="button" className="flex min-h-11 w-full items-center px-4 py-2.5 text-left text-accent active:bg-card-pressed" onClick={() => setPicking(true)}>
           {t('link.linkToStatement')}
         </button>

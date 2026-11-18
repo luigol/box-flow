@@ -139,7 +139,7 @@ export function Commitments() {
             type="button"
             onClick={() => setEditing('new')}
             aria-label={t('commitments.add')}
-            className="mb-1 grid size-9 shrink-0 place-items-center rounded-full bg-accent text-white active:opacity-80 [&_svg]:size-5"
+            className="mb-1 grid size-9 shrink-0 place-items-center rounded-full bg-accent text-on-accent active:opacity-80 [&_svg]:size-5"
           >
             <PlusIcon />
           </button>
@@ -180,8 +180,8 @@ function Section({ title, footer, children }: { title: string; footer?: string[]
   if (children.length === 0) return null
   return (
     <section className="mb-7">
-      <h2 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2 uppercase">{title}</h2>
-      <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-2xl bg-card">{children}</div>
+      <h2 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2">{title}</h2>
+      <div className="inset-rows overflow-hidden rounded-block bg-card">{children}</div>
       {footer?.map((line) => (
         <p key={line} className="px-4 pt-1.5 text-[13px] tracking-normal text-ink-2">
           {line}

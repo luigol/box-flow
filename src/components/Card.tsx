@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 /** Superfície branca sobre o fundo cinza: separa pelo tom, sem borda e sem sombra. */
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <section className={`rounded-3xl bg-card p-5 ${className}`}>{children}</section>
+  return <section className={`rounded-block bg-card p-5 ${className}`}>{children}</section>
 }
 
 export function EmptyState({ title, body }: { title: string; body: string }) {

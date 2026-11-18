@@ -14,8 +14,8 @@ import { addMonths, currentMonth, type YearMonth } from '../lib/month'
 import { Sheet } from './Sheet'
 import { TxPicker } from './TxPicker'
 
-const field = 'mt-1 w-full rounded-xl bg-card px-4 py-3 outline-none'
-const primary = 'rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80'
+const field = 'mt-1 w-full rounded-block bg-card px-4 py-3 outline-none'
+const primary = 'rounded-full bg-accent px-5 py-2.5 text-on-accent disabled:opacity-40 active:opacity-80'
 
 interface CommitmentSheetProps {
   commitment?: Commitment
@@ -267,7 +267,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
         </Label>
         {isCard && <p className="px-3 text-[13px] tracking-normal text-ink-2">{t('commitmentForm.cardHint')}</p>}
 
-        <div className="rounded-xl bg-card px-4 py-3">
+        <div className="rounded-block bg-card px-4 py-3">
           <button type="button" className="text-accent" onClick={() => setPicking(true)}>
             {t('link.linkToStatement')}
           </button>
@@ -285,7 +285,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
-                className="mt-1 w-full rounded-xl bg-canvas px-3 py-2 font-mono text-[15px] text-ink outline-none"
+                className="mt-1 w-full rounded-block bg-canvas px-3 py-2 font-mono text-[15px] text-ink outline-none"
               />
               <span className="mt-1 block">{t('link.bankTextHint')}</span>
             </label>
@@ -302,7 +302,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
         </div>
 
         {confirming ? (
-          <div className="rounded-xl bg-card p-4">
+          <div className="rounded-block bg-card p-4">
             <p className="text-[15px]">{confirming === 'end' ? t('commitmentForm.endConfirm') : t('commitmentForm.removeConfirm')}</p>
             <div className="mt-3 flex gap-5">
               <button

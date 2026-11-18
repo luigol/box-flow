@@ -17,7 +17,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
-        className="mx-auto max-h-[85dvh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-canvas px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+        className="mx-auto max-h-[85dvh] w-full max-w-xl overflow-y-auto rounded-t-[36px] bg-canvas px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
       >
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-separator" />
         {children}

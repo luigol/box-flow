@@ -80,14 +80,14 @@ export function CategorySheet({ entry, categories, ctx, links, commitments, onCr
           autoCapitalize="characters"
           autoCorrect="off"
           spellCheck={false}
-          className="mt-3 w-full rounded-xl bg-card px-4 py-3 font-mono text-[15px] outline-none"
+          className="mt-3 w-full rounded-block bg-card px-4 py-3 font-mono text-[15px] outline-none"
         />
         <div className="mt-5 flex items-center gap-5 px-2">
           <button
             type="button"
             disabled={!ruleText.trim()}
             onClick={() => void createRule()}
-            className="rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80"
+            className="rounded-full bg-accent px-5 py-2.5 text-on-accent disabled:opacity-40 active:opacity-80"
           >
             {t('categorize.createRule')}
           </button>
@@ -102,7 +102,7 @@ export function CategorySheet({ entry, categories, ctx, links, commitments, onCr
   return (
     <Sheet title={t('categorize.title')} onClose={onClose}>
       {header}
-      <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+      <div className="inset-rows overflow-hidden rounded-block bg-card">
         {sorted.map((category) => (
           <button
             key={category.id}
@@ -170,8 +170,8 @@ function CommitmentSection(props: {
 
   return (
     <section className="mt-6">
-      <h3 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2 uppercase">{t('link.commitment')}</h3>
-      <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+      <h3 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2">{t('link.commitment')}</h3>
+      <div className="inset-rows overflow-hidden rounded-block bg-card">
         {links.map((link) => (
           <div key={link.occurrenceKey} className="flex items-center gap-3 px-4 py-2.5">
             <p className="min-w-0 flex-1 truncate">

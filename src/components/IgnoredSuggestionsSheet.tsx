@@ -13,7 +13,7 @@ export function IgnoredSuggestionsSheet({ onClose }: { onClose: () => void }) {
     <Sheet title={t('ignored.title')} onClose={onClose}>
       <h2 className="px-2 text-[21px] font-semibold">{t('ignored.title')}</h2>
       <p className="mt-1 px-2 text-[15px] text-ink-2">{t('ignored.body')}</p>
-      <div className="mt-4 divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+      <div className="mt-4 inset-rows overflow-hidden rounded-block bg-card">
         {(ignored ?? []).map((item) => (
           <div key={item.key} className="flex min-h-11 items-center gap-3 px-4 py-2.5">
             <div className="min-w-0 flex-1">

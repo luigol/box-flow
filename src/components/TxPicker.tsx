@@ -30,9 +30,9 @@ export function TxPicker({ title, onPick, onClose }: { title: string; onPick: (t
         onChange={(e) => setQuery(e.target.value)}
         placeholder={t('link.search')}
         autoFocus
-        className="mt-3 w-full rounded-xl bg-card px-4 py-3 outline-none placeholder:text-ink-2"
+        className="mt-3 w-full rounded-block bg-card px-4 py-3 outline-none placeholder:text-ink-2"
       />
-      <div className="mt-3 divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">
+      <div className="mt-3 inset-rows overflow-hidden rounded-block bg-card">
         {shown.map((tx) => {
           const account = accounts.get(tx.accountId)
           return (

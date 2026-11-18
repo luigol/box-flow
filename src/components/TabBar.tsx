@@ -37,7 +37,7 @@ export function TabBar({ active, onSelect, onAdd }: TabBarProps) {
             type="button"
             onClick={onAdd}
             aria-label={t('tabs.add')}
-            className="grid size-11 place-items-center rounded-full bg-accent text-white active:opacity-80"
+            className="grid size-11 place-items-center rounded-full bg-accent text-on-accent active:opacity-80"
           >
             <PlusIcon />
           </button>

@@ -5,8 +5,8 @@ import { ChevronRightIcon } from './icons'
 export function Group({ title, footer, children }: { title?: string; footer?: string; children: ReactNode }) {
   return (
     <section className="mb-7">
-      {title && <h2 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2 uppercase">{title}</h2>}
-      <div className="divide-y-[0.5px] divide-separator overflow-hidden rounded-xl bg-card">{children}</div>
+      {title && <h2 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2">{title}</h2>}
+      <div className="inset-rows overflow-hidden rounded-block bg-card">{children}</div>
       {footer && <p className="px-4 pt-1.5 text-[13px] tracking-normal text-ink-2">{footer}</p>}
     </section>
   )

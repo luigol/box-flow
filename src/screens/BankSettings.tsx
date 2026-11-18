@@ -81,7 +81,7 @@ export function BankSettings({ onBack }: { onBack: () => void }) {
           <button
             type="submit"
             disabled={!canSave}
-            className="rounded-full bg-accent px-5 py-2.5 text-white disabled:opacity-40 active:opacity-80"
+            className="rounded-full bg-accent px-5 py-2.5 text-on-accent disabled:opacity-40 active:opacity-80"
           >
             {t('banks.save')}
           </button>
