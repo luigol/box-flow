@@ -4,6 +4,7 @@ export const ptBR = {
     statement: 'Extrato',
     commitments: 'Compromissos',
     add: 'Novo lançamento',
+    label: 'Abas',
     balance: 'Saldo',
     settings: 'Ajustes',
   },

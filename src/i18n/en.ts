@@ -5,6 +5,7 @@ export const en: Messages = {
     statement: 'Statement',
     commitments: 'Commitments',
     add: 'New entry',
+    label: 'Tabs',
     balance: 'Balance',
     settings: 'Settings',
   },

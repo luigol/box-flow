@@ -47,7 +47,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-dvh pb-[calc(env(safe-area-inset-bottom)+6rem)]">
+    <div className="min-h-dvh pb-[calc(env(safe-area-inset-bottom)+7rem)]">
       <main className="mx-auto max-w-xl px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)]">{screens[tab]}</main>
       <TabBar active={tab} onSelect={selectTab} onAdd={() => setAdding(true)} />
       {adding && <QuickAddSheet onClose={() => setAdding(false)} />}
