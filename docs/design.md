@@ -230,6 +230,13 @@ Revisto em 18/11/2026: a referência passou a ser o app **Carteira** do iPhone (
 - **Detalhe do lançamento:** tocar numa linha abre uma tela com o valor grande, um bloco com estado, conta, texto do banco e total, as linhas de categoria e compromisso, os dados do cartão e as ações em cápsula, cada uma com uma explicação embaixo. A categoria é escolhida a partir dela.
 - **Barra de abas** de vidro, como a do app Arquivos: a seleção é uma pílula; ao tocar, vira uma lente que desliza até a aba, e dá para segurar e arrastar. O lançamento rápido (+) fica num círculo ao lado da barra. Botões de vidro crescem ao serem tocados.
 - Fonte do sistema (no iPhone, a SF Pro), números com largura fixa; segue o modo claro ou escuro do aparelho.
+- As linhas de recorrentes não mostram mais "próximo: dd/mm": a agenda ("Todo dia 25", "Todo ano em 05/03") já diz quando cai.
+
+**Em aberto** (redesenho; aplicado no Extrato, no detalhe, na barra de abas e em Compromissos):
+- Saldo, Ajustes, Bancos, Categorias e regras, as folhas e os formulários só têm as regras da base (sem azul, um raio, separador recuado, sem caixa alta). Falta o desenho de cada um, num esboço antes. Ideia para o Saldo: um cartão colorido por conta, como na Carteira.
+- Tela para escolher a cor de cada categoria, em Ajustes → Categorias. O campo já existe e vai no backup.
+- Gesto de voltar arrastando da borda, no detalhe.
+- Botão "···" no topo do Extrato, quando houver o que pôr nele.
 
 ## Consentimento
 - O app **avisa** quando o `consentExpiresAt` de um banco estiver perto (ex.: 30 dias antes) e explica como reconectar.
