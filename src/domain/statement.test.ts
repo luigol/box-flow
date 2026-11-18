@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { BankAccount, BankTransaction } from './bank'
 import type { CardBill } from './card'
 import { TRANSFER } from './category'
-import { monthStatement, monthTotals, type StatementEntry } from './statement'
+import { monthSpending, monthStatement, monthTotals, type StatementEntry } from './statement'
 
 // Dados inventados: o repositório é público.
 const checking: BankAccount = { id: 'acc1', itemId: 'item1', kind: 'checking', name: 'CONTA EXEMPLO', balance: 0 }
@@ -72,5 +72,42 @@ describe('monthTotals: entradas, saídas e resultado do mês', () => {
     const categoryOf = (e: StatementEntry) => (e.tx.id.startsWith('fatura') ? TRANSFER : undefined)
 
     expect(monthTotals(entries, categoryOf)).toEqual({ income: 300_000, expense: -2_317, net: 297_683 })
+  })
+})
+
+describe('monthSpending: gasto por categoria para a barra do mês', () => {
+  const entry = (id: string, amount: number): StatementEntry => ({ tx: tx(id, { amount }), account: checking })
+  // O id do lançamento diz a categoria: "moradia-1" → "moradia"; "sem-..." → sem categoria.
+  const categoryOf = (e: StatementEntry) => (e.tx.id.startsWith('sem') ? undefined : e.tx.id.split('-')[0])
+
+  it('as maiores categorias primeiro; o resto e o sem categoria juntos em "outros"', () => {
+    const entries = [
+      entry('moradia-1', -60_000),
+      entry('mercado-1', -30_000),
+      entry('mercado-2', -20_000),
+      entry('lazer-1', -10_000),
+      entry('roupa-1', -5_000),
+      entry('sem-1', -7_000),
+    ]
+
+    const spending = monthSpending(entries, categoryOf, 3)
+
+    expect(spending.top).toEqual([
+      { categoryId: 'moradia', amount: 60_000 },
+      { categoryId: 'mercado', amount: 50_000 },
+      { categoryId: 'lazer', amount: 10_000 },
+    ])
+    expect(spending.others).toBe(12_000) // roupa + sem categoria
+    expect(spending.total).toBe(132_000)
+  })
+
+  it('entradas e transferências ficam de fora; o total bate com as saídas do mês', () => {
+    const entries = [entry('salario-1', 300_000), entry('fatura-1', -50_000), entry('mercado-1', -2_317)]
+    const withTransfer = (e: StatementEntry) => (e.tx.id.startsWith('fatura') ? TRANSFER : categoryOf(e))
+
+    const spending = monthSpending(entries, withTransfer)
+
+    expect(spending.top).toEqual([{ categoryId: 'mercado', amount: 2_317 }])
+    expect(spending.total).toBe(-monthTotals(entries, withTransfer).expense)
   })
 })

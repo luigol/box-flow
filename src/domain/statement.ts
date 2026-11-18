@@ -55,6 +55,44 @@ export function monthTotals(entries: StatementEntry[], categoryOf: (entry: State
   return { income, expense, net: income + expense }
 }
 
+export interface MonthSpending {
+  /** As categorias que mais gastaram, da maior para a menor (valores positivos, em centavos). */
+  top: { categoryId: string; amount: number }[]
+  /** O resto: as demais categorias e o que está sem categoria. */
+  others: number
+  /** Tudo o que saiu: igual a `-monthTotals(...).expense`. */
+  total: number
+}
+
+/**
+ * Gasto do mês por categoria, para a barra do mês (docs/design.md, "Visual"): as `limit` maiores
+ * e o resto junto, inclusive o sem categoria. Entradas e transferências ficam de fora.
+ */
+export function monthSpending(
+  entries: StatementEntry[],
+  categoryOf: (entry: StatementEntry) => string | undefined,
+  limit = 5,
+): MonthSpending {
+  const byCategory = new Map<string, number>()
+  let uncategorized = 0
+  let total = 0
+  for (const entry of entries) {
+    const spent = -entry.tx.amount
+    if (spent <= 0) continue
+    const categoryId = categoryOf(entry)
+    if (categoryId === TRANSFER) continue
+    total += spent
+    if (categoryId) byCategory.set(categoryId, (byCategory.get(categoryId) ?? 0) + spent)
+    else uncategorized += spent
+  }
+  const sorted = [...byCategory]
+    .map(([categoryId, amount]) => ({ categoryId, amount }))
+    .sort((a, b) => b.amount - a.amount || a.categoryId.localeCompare(b.categoryId))
+  const top = sorted.slice(0, limit)
+  const others = uncategorized + sorted.slice(limit).reduce((sum, c) => sum + c.amount, 0)
+  return { top, others, total }
+}
+
 /** Mês (AAAA-MM) em que o lançamento cai. */
 function monthOf(tx: BankTransaction, bills: CardBill[]): string {
   if (!tx.card) return tx.date.slice(0, 7)

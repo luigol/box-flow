@@ -67,3 +67,17 @@ export const ChevronRightIcon = () => (
     <path d="m9 5 7 7-7 7" />
   </Icon>
 )
+
+/** Seta das linhas que abrem detalhe: pequena e de traço grosso, como no iPhone. */
+export const DisclosureIcon = () => (
+  <Icon strokeWidth={3} width={13} height={13}>
+    <path d="m9 5 7 7-7 7" />
+  </Icon>
+)
+
+export const RefreshIcon = ({ spinning = false }: { spinning?: boolean }) => (
+  <Icon strokeWidth={2} width={22} height={22} className={spinning ? 'animate-spin' : undefined}>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+    <path d="M19.5 4.5v4h-4" />
+  </Icon>
+)

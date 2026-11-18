@@ -41,6 +41,11 @@ export function formatDateTime(instant: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(instant))
 }
 
+/** "09:12" a partir de um momento em UTC, no fuso do aparelho. */
+export function formatTime(instant: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(new Date(instant))
+}
+
 /** "16/11/2027" a partir de um momento em UTC. */
 export function formatDate(instant: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(new Date(instant))

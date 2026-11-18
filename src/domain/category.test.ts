@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BankAccount, BankTransaction } from './bank'
-import { classify, DEFAULT_RULES, TRANSFER, type Rule } from './category'
+import { CATEGORY_COLORS, categoryColor, classify, DEFAULT_RULES, TRANSFER, type Rule } from './category'
 
 // Dados inventados: o repositório é público.
 const checking: BankAccount = { id: 'acc1', itemId: 'item1', kind: 'checking', name: 'CONTA', balance: 0 }
@@ -124,5 +124,27 @@ describe('regras automáticas de transferência (já vêm com o app)', () => {
   ])('%s → não é transferência', (_, account, bankCategory, amount) => {
     const t = tx({ accountId: account.id, bankCategory, amount })
     expect(classify(t, account, { rules: DEFAULT_RULES, manual: noManual })).toBeUndefined()
+  })
+})
+
+describe('categoryColor: cor fixa de cada categoria', () => {
+  it('a escolhida pelo usuário vence a padrão', () => {
+    expect(categoryColor({ id: 'housing', color: 'purple' })).toBe('purple')
+  })
+
+  it('categoria que vem com o app tem cor padrão', () => {
+    expect(categoryColor({ id: 'housing' })).toBe('red')
+    expect(categoryColor({ id: 'food' })).toBe('orange')
+  })
+
+  it('categoria criada no app: sempre a mesma cor, tirada do id', () => {
+    const color = categoryColor({ id: 'c:minha-categoria' })
+
+    expect(CATEGORY_COLORS).toContain(color)
+    expect(categoryColor({ id: 'c:minha-categoria' })).toBe(color)
+  })
+
+  it('cor desconhecida (arquivo antigo ou editado à mão) cai na padrão', () => {
+    expect(categoryColor({ id: 'food', color: 'blue' as never })).toBe('orange')
   })
 })

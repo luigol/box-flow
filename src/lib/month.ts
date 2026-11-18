@@ -21,8 +21,18 @@ export function dateInMonth(ym: YearMonth, day: number): string {
 
 /** "Novembro" no ano corrente; "Janeiro de 2027" em outro ano. */
 export function formatMonth(ym: YearMonth, locale: string, today = new Date()): string {
+  const label = monthName(ym, locale, today)
+  return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1)
+}
+
+/** Nome do mês para o meio de uma frase ("gasto em novembro"); com o ano, se não for o corrente. */
+export function monthName(ym: YearMonth, locale: string, today = new Date()): string {
   const options: Intl.DateTimeFormatOptions =
     ym.year === today.getFullYear() ? { month: 'long' } : { month: 'long', year: 'numeric' }
-  const label = new Intl.DateTimeFormat(locale, options).format(new Date(ym.year, ym.month - 1, 1))
-  return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1)
+  return new Intl.DateTimeFormat(locale, options).format(new Date(ym.year, ym.month - 1, 1))
+}
+
+/** AAAA-MM-DD do dia no aparelho. */
+export function localIsoDate(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }

@@ -22,6 +22,29 @@
   --tag: #e5e5ea;
   --tag-ink: #48484a;
   --bar: rgb(250 250 252 / 0.82);
+  /* Vidro (só na navegação) */
+  --glass: rgb(255 255 255 / 0.66);
+  --glass-rim: rgb(0 0 0 / 0.07);
+  --glass-hi: rgb(255 255 255 / 0.95);
+  --glass-shadow: rgb(0 0 0 / 0.14);
+  --glass-press: rgb(255 255 255 / 0.88);
+  /* Barra do mês */
+  --bar-free: #e5e5ea;
+  --planned: #c7c7cc;
+  --planned-2: #e5e5ea;
+  /* Cores de categoria (cores de sistema do iOS) */
+  --cat-red: #ff3b30;
+  --cat-orange: #ff9500;
+  --cat-yellow: #ffcc00;
+  --cat-green: #34c759;
+  --cat-mint: #00c7be;
+  --cat-teal: #30b0c7;
+  --cat-cyan: #32ade6;
+  --cat-indigo: #5856d6;
+  --cat-purple: #af52de;
+  --cat-pink: #ff2d55;
+  --cat-brown: #a2845e;
+  --cat-gray: #8e8e93;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -42,6 +65,26 @@
     --tag: #3a3a3c;
     --tag-ink: #d1d1d6;
     --bar: rgb(22 22 23 / 0.82);
+    --glass: rgb(46 46 50 / 0.55);
+    --glass-rim: rgb(255 255 255 / 0.16);
+    --glass-hi: rgb(255 255 255 / 0.12);
+    --glass-shadow: rgb(0 0 0 / 0.5);
+    --glass-press: rgb(72 72 78 / 0.66);
+    --bar-free: #000000;
+    --planned: #48484a;
+    --planned-2: #2c2c2e;
+    --cat-red: #ff453a;
+    --cat-orange: #ff9f0a;
+    --cat-yellow: #ffd60a;
+    --cat-green: #30d158;
+    --cat-mint: #63e6e2;
+    --cat-teal: #40c8e0;
+    --cat-cyan: #64d2ff;
+    --cat-indigo: #5e5ce6;
+    --cat-purple: #bf5af2;
+    --cat-pink: #ff375f;
+    --cat-brown: #ac8e68;
+    --cat-gray: #8e8e93;
   }
 }
 
@@ -62,6 +105,7 @@
   --color-tag: var(--tag);
   --color-tag-ink: var(--tag-ink);
   --color-bar: var(--bar);
+  --color-bar-free: var(--bar-free);
   /* Um raio só para blocos e campos. */
   --radius-block: 26px;
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -101,5 +145,68 @@
     right: 1rem;
     border-top: 0.5px solid var(--separator);
     pointer-events: none;
+  }
+
+  /* Vidro (Liquid Glass aproximado): só na navegação. Sólido para quem reduz a transparência. */
+  .glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(14px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(180%);
+    border: 0.5px solid var(--glass-rim);
+    box-shadow:
+      inset 0 1px 0 var(--glass-hi),
+      0 10px 26px -10px var(--glass-shadow);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background: var(--card);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  /* Botão de vidro: cresce ao ser tocado, com mola, como no iOS 26. */
+  .glass-press {
+    transition:
+      scale 0.4s cubic-bezier(0.3, 1.6, 0.5, 1),
+      background-color 0.2s ease;
+  }
+  .glass-press:active {
+    scale: 1.12;
+    background: var(--glass-press);
+  }
+  /* Cápsula com vários botões: ela cresce um pouco e o botão tocado acende. */
+  .glass-group {
+    transition: scale 0.4s cubic-bezier(0.3, 1.6, 0.5, 1);
+  }
+  .glass-group:has(button:active) {
+    scale: 1.05;
+  }
+  .glass-group button {
+    transition: background-color 0.2s ease;
+  }
+  .glass-group button:active {
+    background: var(--card-pressed);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .glass-press,
+    .glass-group {
+      transition: none;
+    }
+  }
+
+  /* Topo fixo: o conteúdo some num degradê ao passar por baixo dos botões de vidro. */
+  .scroll-edge::before {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * env(safe-area-inset-top)) -1rem -1.375rem;
+    background: linear-gradient(var(--canvas) 45%, transparent);
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* Previsto na barra do mês: listrado. */
+  .bar-planned {
+    background: repeating-linear-gradient(135deg, var(--planned) 0 3px, var(--planned-2) 3px 6px);
   }
 }

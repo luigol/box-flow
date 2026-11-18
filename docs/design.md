@@ -185,8 +185,9 @@ Transporte por app · Transporte · Alimentação · Lazer · Saúde · Presente
 - **Transferência** é uma categoria especial: não entra nos totais do mês.
 - **Regras automáticas de transferência** (pela categoria que a Pluggy dá): `Credit card payment`, `Same person transfer`, `Investments`, `Fixed income`; no cartão, entrada marcada como `Transfers` ou `Transfer - PIX` (pagamento da fatura); e o texto "Pagamento de fatura" saindo da conta (há banco que manda só como `Transfers`). Ficam de fora: saída no cartão marcada como `Transfers` (Pix no crédito, que é empréstimo), rendimentos e estornos.
 - **Trocar a categoria** de um lançamento oferece criar uma regra com um trecho do texto ("aplicar a todos parecidos").
-- **Totais do mês:** entradas, saídas e resultado, sem transferências; o extrato mostra quantos estão sem categoria.
-- Implementado em `src/domain/category.ts` (`classify`) e `src/domain/statement.ts` (`monthTotals`).
+- **Totais do mês:** sem transferências. O Extrato mostra o gasto em destaque e a barra do mês (entradas, gasto por categoria, previsto e livre); o item "Para revisar" mostra quantos estão sem categoria e, tocado, deixa só eles na lista.
+- **Cor da categoria:** fixa. As que vêm com o app têm uma cor padrão; as criadas no app recebem uma tirada do id (sempre a mesma). A escolhida pelo usuário vence e vai no `box-flow.json` com as categorias.
+- Implementado em `src/domain/category.ts` (`classify`, `categoryColor`) e `src/domain/statement.ts` (`monthTotals`, `monthSpending`).
 
 ## Regras vindas do arquivo
 - No `box-flow.json`, cada regra é `{ "text": "DL*99", "category": "Transporte por app" }`. `category` é o nome; a categoria que não existe é criada (o nome é comparado sem acento e sem maiúsculas, nos dois idiomas).

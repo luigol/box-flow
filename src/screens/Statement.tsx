@@ -1,21 +1,25 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, EmptyState } from '../components/Card'
 import { CategorySheet } from '../components/CategorySheet'
 import { CommitmentSheet } from '../components/CommitmentSheet'
-import { MonthHeader } from '../components/ScreenHeader'
-import { useClassification } from '../db/classification'
+import { GlassButton, GlassTopBar, MonthCapsule } from '../components/GlassTopBar'
+import { DisclosureIcon, RefreshIcon } from '../components/icons'
+import { MonthBar } from '../components/MonthBar'
 import { OccurrenceSheet } from '../components/OccurrenceSheet'
+import { Tag } from '../components/Tag'
+import { useClassification } from '../db/classification'
 import { db, loadPluggySettings } from '../db/instance'
 import { useReconciliation } from '../db/reconciliation'
+import type { BankAccount } from '../domain/bank'
 import { categoryName, classify, TRANSFER, type Category } from '../domain/category'
-import type { Commitment, Occurrence } from '../domain/commitment'
+import type { Commitment } from '../domain/commitment'
 import { forecastFor, forecastTotals } from '../domain/forecast'
 import type { ReconciledOccurrence } from '../domain/reconcile'
-import { monthStatement, monthTotals, type StatementEntry } from '../domain/statement'
-import { formatDateTime, formatDay, formatMoney } from '../lib/format'
-import type { YearMonth } from '../lib/month'
+import { monthSpending, monthStatement, monthTotals, type StatementEntry } from '../domain/statement'
+import { formatDateTime, formatDay, formatMoney, formatTime } from '../lib/format'
+import { localIsoDate, monthName, type YearMonth } from '../lib/month'
 import { syncNow, useSyncRunning } from '../sync/runSync'
 
 interface StatementProps {
@@ -29,6 +33,7 @@ type Item =
   | { kind: 'tx'; date: string; entry: StatementEntry }
   | { kind: 'forecast'; date: string; occurrence: ReconciledOccurrence; commitment: Commitment }
 
+/** Extrato no estilo do app Carteira (docs/design.md, "Visual"). */
 export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps) {
   const { t } = useTranslation()
   const settings = useLiveQuery(async () => (await loadPluggySettings()) ?? null, [])
@@ -43,6 +48,8 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
   const reconciliation = useReconciliation()
   const commitments = reconciliation?.commitments
   const classification = useClassification()
+  const sync = useSyncInfo()
+  const [reviewOnly, setReviewOnly] = useState(false)
   const [editing, setEditing] = useState<StatementEntry | null>(null)
   const [editingCommitment, setEditingCommitment] = useState<Commitment | null>(null)
   const [creatingFrom, setCreatingFrom] = useState<{ entry: StatementEntry; categoryId?: string } | null>(null)
@@ -57,22 +64,41 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
   )
   const categoryOf = useMemo(() => (entry: StatementEntry) => (ctx ? classify(entry.tx, entry.account, ctx) : undefined), [ctx])
 
+  const uncategorized = useMemo(() => (ctx ? entries.filter((e) => !categoryOf(e)) : []), [ctx, entries, categoryOf])
+  // "Para revisar" mostra só os sem categoria; volta ao normal sozinho quando não sobra nenhum.
+  const reviewing = reviewOnly && uncategorized.length > 0
+
   const items = useMemo(() => {
     const byId = new Map((commitments ?? []).map((c) => [c.id, c]))
     const list: Item[] = [
-      ...entries.map((entry) => ({ kind: 'tx' as const, date: entry.tx.date, entry })),
-      ...forecast.flatMap((occurrence) => {
-        const commitment = byId.get(occurrence.commitmentId)
-        return commitment ? [{ kind: 'forecast' as const, date: occurrence.date, occurrence, commitment }] : []
-      }),
+      ...(reviewing ? uncategorized : entries).map((entry) => ({ kind: 'tx' as const, date: entry.tx.date, entry })),
+      ...(reviewing
+        ? []
+        : forecast.flatMap((occurrence) => {
+            const commitment = byId.get(occurrence.commitmentId)
+            return commitment ? [{ kind: 'forecast' as const, date: occurrence.date, occurrence, commitment }] : []
+          })),
     ]
     return list.sort((a, b) => b.date.localeCompare(a.date))
-  }, [entries, forecast, commitments])
+  }, [entries, uncategorized, reviewing, forecast, commitments])
 
-  let body
+  const topBar = (
+    <GlassTopBar
+      leading={<MonthCapsule month={month} onChange={onMonthChange} />}
+      trailing={
+        settings ? (
+          <GlassButton label={t('statement.refresh')} onClick={() => void syncNow()} disabled={sync.running}>
+            <RefreshIcon spinning={sync.running} />
+          </GlassButton>
+        ) : undefined
+      }
+    />
+  )
+
+  let body: ReactNode = null
   if (settings === null && (commitments?.length ?? 0) === 0) {
     body = (
-      <Card className="px-6 py-10 text-center">
+      <Card className="mt-2 px-6 py-10 text-center">
         <h2 className="text-[21px] font-semibold tracking-[0.011em]">{t('statement.notConfiguredTitle')}</h2>
         <p className="mt-1 text-[15px] text-ink-2">{t('statement.notConfiguredBody')}</p>
         <button type="button" onClick={onOpenBanks} className="mt-5 rounded-full bg-accent px-5 py-2.5 text-on-accent active:opacity-80">
@@ -82,25 +108,39 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
     )
   } else if (data && items.length === 0) {
     body = <EmptyState title={t('statement.emptyTitle')} body={t('statement.emptyBody')} />
-  } else {
+  } else if (data) {
+    const totals = monthTotals(entries, categoryOf)
+    const planned = forecastTotals(forecast)
     body = (
       <>
-        <Totals entries={entries} forecast={forecast} categoryOf={categoryOf} />
+        <Hero spent={-totals.expense} month={month} warning={sync.failed && !sync.running ? t('statement.updateFailed') : undefined} />
+        <MonthBar
+          income={totals.income}
+          plannedIncome={planned.income}
+          spending={monthSpending(entries, categoryOf)}
+          plannedExpense={-planned.expense}
+          categories={classification?.categories ?? []}
+        />
+        {uncategorized.length > 0 && (
+          <ReviewRow count={uncategorized.length} active={reviewing} onToggle={() => setReviewOnly(!reviewing)} />
+        )}
+        <h2 className="mx-4 mt-7 mb-3 text-[22px] leading-tight font-bold tracking-[-0.02em]">{t('statement.entries')}</h2>
         <DayGroups
           items={items}
+          accounts={data.accounts}
           categories={classification?.categories ?? []}
           categoryOf={categoryOf}
           onSelect={setEditing}
           onSelectForecast={(occurrence, commitment) => setOpenOccurrence({ occurrence, commitment })}
         />
+        <SyncFootnote running={sync.running} synced={sync.synced} />
       </>
     )
   }
 
   return (
     <>
-      <MonthHeader eyebrow={t('tabs.statement')} month={month} onChange={onMonthChange} />
-      {settings && <SyncStatus />}
+      {topBar}
       {body}
       {editing && classification && ctx && (
         <CategorySheet
@@ -135,83 +175,60 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
   )
 }
 
-function SyncStatus() {
-  const { t, i18n } = useTranslation()
+/** Estado da atualização com os bancos. */
+function useSyncInfo() {
   const running = useSyncRunning()
   const connections = useLiveQuery(() => db.connections.toArray(), [])
-  const failed = connections?.some((c) => c.error)
+  const failed = Boolean(connections?.some((c) => c.error))
   const synced = connections?.map((c) => c.syncedAt).filter((s): s is string => Boolean(s)).sort()[0]
-
-  let text = ''
-  if (running) text = t('statement.updating')
-  else if (failed) text = t('statement.updateFailed')
-  else if (synced) text = t('statement.updatedAt', { when: formatDateTime(synced, i18n.language) })
-
-  return (
-    <div className="-mt-3 mb-4 flex items-center justify-between gap-4 text-[13px] tracking-normal">
-      <span className={failed && !running ? 'text-warning' : 'text-ink-2'}>{text}</span>
-      <button type="button" onClick={() => void syncNow()} disabled={running} className="text-accent disabled:opacity-40">
-        {t('statement.refresh')}
-      </button>
-    </div>
-  )
+  return { running, failed, synced }
 }
 
-interface TotalsProps {
-  entries: StatementEntry[]
-  forecast: Occurrence[]
-  categoryOf: (e: StatementEntry) => string | undefined
-}
-
-/** Realizado (sem transferências) e, abaixo, o que ainda está previsto no mês. */
-function Totals({ entries, forecast, categoryOf }: TotalsProps) {
+/** O destaque da tela: o gasto do mês, grande e na fonte arredondada. */
+function Hero({ spent, month, warning }: { spent: number; month: YearMonth; warning?: string | undefined }) {
   const { t, i18n } = useTranslation()
-  const locale = i18n.language
-  const totals = monthTotals(entries, categoryOf)
-  const planned = forecastTotals(forecast)
-  const uncategorized = entries.filter((e) => !categoryOf(e)).length
-  const withForecast = totals.net + planned.income + planned.expense
-
   return (
-    <Card className="mb-6">
-      <div className="grid grid-cols-3 gap-2">
-        <Figure
-          label={t('statement.income')}
-          value={formatMoney(totals.income, locale)}
-          tone="text-positive"
-          note={planned.income ? t('statement.plusForecast', { amount: formatMoney(planned.income, locale) }) : undefined}
-        />
-        <Figure
-          label={t('statement.expense')}
-          value={formatMoney(totals.expense, locale)}
-          note={planned.expense ? t('statement.plusForecast', { amount: formatMoney(planned.expense, locale) }) : undefined}
-        />
-        <Figure
-          label={t('statement.net')}
-          value={formatMoney(totals.net, locale, { signed: true })}
-          tone={totals.net > 0 ? 'text-positive' : ''}
-          note={forecast.length ? t('statement.withForecast', { amount: formatMoney(withForecast, locale, { signed: true }) }) : undefined}
-        />
-      </div>
-      {uncategorized > 0 && (
-        <p className="mt-3 text-[13px] tracking-normal text-ink-2">{t('statement.uncategorizedCount', { count: uncategorized })}</p>
-      )}
-    </Card>
+    <section className="pt-3.5 pb-6 text-center">
+      <p className="font-rounded text-[length:clamp(2.25rem,12vw,3rem)] leading-[1.05] font-bold tracking-[-0.02em] whitespace-nowrap tabular-nums">
+        {formatMoney(spent, i18n.language)}
+      </p>
+      <p className="mt-1.5 text-ink-2">{t('statement.spentIn', { month: monthName(month, i18n.language) })}</p>
+      {warning && <p className="mt-2 text-[15px] text-warning">{warning}</p>}
+    </section>
   )
 }
 
-function Figure({ label, value, tone = '', note }: { label: string; value: string; tone?: string; note?: string }) {
+/** Um item só para os lançamentos sem categoria, em vez de laranja em cada linha. */
+function ReviewRow({ count, active, onToggle }: { count: number; active: boolean; onToggle: () => void }) {
+  const { t } = useTranslation()
   return (
-    <div className="min-w-0">
-      <p className="text-[13px] tracking-normal text-ink-2">{label}</p>
-      <p className={`truncate text-[17px] font-semibold tabular-nums ${tone}`}>{value}</p>
-      {note && <p className="text-[12px] tracking-normal text-ink-2 tabular-nums">{note}</p>}
-    </div>
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className="flex w-full items-start gap-2.5 rounded-block bg-card px-4 py-3 text-left active:bg-card-pressed"
+    >
+      <div className="min-w-0 flex-1 leading-[1.3]">
+        <p className="font-semibold tracking-[-0.02em]">{t('statement.toReview')}</p>
+        <p className="mt-0.5 text-[15px] tracking-[-0.012em] text-ink-2">{active ? t('statement.toReviewShowing') : t('statement.toReviewBody')}</p>
+      </div>
+      <span className="font-semibold text-warning tabular-nums">{count}</span>
+      <Disclosure />
+    </button>
+  )
+}
+
+function Disclosure() {
+  return (
+    <span className="shrink-0 pt-[5px] text-ink-3">
+      <DisclosureIcon />
+    </span>
   )
 }
 
 interface DayGroupsProps {
   items: Item[]
+  accounts: BankAccount[]
   categories: Category[]
   categoryOf: (e: StatementEntry) => string | undefined
   onSelect: (entry: StatementEntry) => void
@@ -219,8 +236,8 @@ interface DayGroupsProps {
 }
 
 /** Lançamentos e previstos agrupados por dia, do mais recente para o mais antigo. */
-function DayGroups({ items, categories, categoryOf, onSelect, onSelectForecast }: DayGroupsProps) {
-  const { i18n } = useTranslation()
+function DayGroups({ items, accounts, categories, categoryOf, onSelect, onSelectForecast }: DayGroupsProps) {
+  const { t, i18n } = useTranslation()
   const days: { date: string; items: Item[] }[] = []
   for (const item of items) {
     const last = days.at(-1)
@@ -228,22 +245,31 @@ function DayGroups({ items, categories, categoryOf, onSelect, onSelectForecast }
     else days.push({ date: item.date, items: [item] })
   }
   const byId = new Map(categories.map((c) => [c.id, c]))
+  const accountsById = new Map(accounts.map((a) => [a.id, a]))
+  const today = localIsoDate()
+  const yesterdayDate = new Date()
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  const yesterday = localIsoDate(yesterdayDate)
+  const label = (date: string) =>
+    date === today ? t('statement.today') : date === yesterday ? t('statement.yesterday') : formatDay(date, i18n.language)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-[22px]">
       {days.map((day) => (
         <section key={day.date}>
-          <h2 className="px-1 pb-1.5 text-[13px] font-semibold tracking-normal text-ink-2">{formatDay(day.date, i18n.language)}</h2>
+          <h3 className="px-4 pb-[7px] text-[15px] font-semibold tracking-[-0.01em] text-ink-2">{label(day.date)}</h3>
           <div className="inset-rows overflow-hidden rounded-block bg-card">
             {day.items.map((item) => {
               if (item.kind === 'forecast') {
+                const { commitment } = item
                 return (
                   <ForecastRow
-                    key={`${item.commitment.id}:${item.occurrence.date}`}
+                    key={`${commitment.id}:${item.occurrence.date}`}
                     occurrence={item.occurrence}
-                    commitment={item.commitment}
-                    category={item.commitment.categoryId ? byId.get(item.commitment.categoryId) : undefined}
-                    onSelect={() => onSelectForecast(item.occurrence, item.commitment)}
+                    commitment={commitment}
+                    category={commitment.categoryId ? byId.get(commitment.categoryId) : undefined}
+                    account={commitment.accountId ? accountsById.get(commitment.accountId) : undefined}
+                    onSelect={() => onSelectForecast(item.occurrence, commitment)}
                   />
                 )
               }
@@ -265,6 +291,37 @@ function DayGroups({ items, categories, categoryOf, onSelect, onSelectForecast }
   )
 }
 
+const accountLabel = (account: BankAccount) => (account.last4 ? `${account.name} •${account.last4}` : account.name)
+
+/** Valor da linha: sem sinal de menos; a entrada leva "+". */
+const rowAmount = (amount: number, locale: string) => formatMoney(Math.abs(amount), locale, { signed: amount > 0 })
+
+interface RowProps {
+  title: string
+  /** Previsto: título em cinza. */
+  muted?: boolean
+  line1: ReactNode
+  line2?: string | undefined
+  amount: string
+  positive: boolean
+  onClick: () => void
+}
+
+/** Linha no estilo da Carteira: nome em semibold, duas linhas cinza sem "·", valor cinza e seta. */
+function Row({ title, muted = false, line1, line2, amount, positive, onClick }: RowProps) {
+  return (
+    <button type="button" onClick={onClick} className="flex w-full items-start gap-2.5 px-4 py-[13px] text-left active:bg-card-pressed">
+      <div className="min-w-0 flex-1 leading-[1.3]">
+        <p className={`truncate font-semibold tracking-[-0.02em] ${muted ? 'text-ink-2' : ''}`}>{title}</p>
+        <p className="mt-0.5 truncate text-[15px] tracking-[-0.012em] text-ink-2">{line1}</p>
+        {line2 && <p className="truncate text-[15px] tracking-[-0.012em] text-ink-2">{line2}</p>}
+      </div>
+      <p className={`shrink-0 pt-0.5 text-[15px] tracking-[-0.012em] tabular-nums ${positive ? 'text-positive' : 'text-ink-2'}`}>{amount}</p>
+      <Disclosure />
+    </button>
+  )
+}
+
 interface EntryRowProps {
   entry: StatementEntry
   category: Category | undefined
@@ -275,29 +332,23 @@ interface EntryRowProps {
 function EntryRow({ entry: { tx, account }, category, isTransfer, onSelect }: EntryRowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
-  const details = [
-    account.last4 ? `${account.name} •${account.last4}` : account.name,
-    tx.card?.installment && `${tx.card.installment.number}/${tx.card.installment.total}`,
-    tx.foreign && formatMoney(tx.foreign.amount, locale, { currency: tx.foreign.currency }),
-    tx.status === 'pending' && t('statement.pending'),
-  ].filter(Boolean)
-
+  const installment = tx.card?.installment
   return (
-    <button type="button" onClick={onSelect} className="flex w-full items-start gap-3 px-4 py-2.5 text-left active:bg-card-pressed">
-      <div className="min-w-0 flex-1">
-        <p className="truncate">{tx.merchant ?? tx.description}</p>
-        <p className="truncate text-[13px] tracking-normal text-ink-2">
-          <span className={category ? 'text-ink' : 'text-warning'}>
-            {category ? categoryName(category, locale) : t('statement.uncategorized')}
-          </span>
-          {' · '}
-          {details.join(' · ')}
-        </p>
-      </div>
-      <p className={`shrink-0 tabular-nums ${isTransfer ? 'text-ink-2' : tx.amount > 0 ? 'text-positive' : ''}`}>
-        {formatMoney(tx.amount, locale, { signed: tx.amount > 0 })}
-      </p>
-    </button>
+    <Row
+      title={tx.merchant ?? tx.description}
+      line1={
+        <>
+          {category ? categoryName(category, locale) : t('statement.uncategorized')}
+          {installment && <Tag>{t('commitments.installmentOf', { number: installment.number, total: installment.total })}</Tag>}
+          {tx.foreign && <Tag>{formatMoney(tx.foreign.amount, locale, { currency: tx.foreign.currency })}</Tag>}
+          {tx.status === 'pending' && <Tag>{t('statement.pending')}</Tag>}
+        </>
+      }
+      line2={accountLabel(account)}
+      amount={rowAmount(tx.amount, locale)}
+      positive={tx.amount > 0 && !isTransfer}
+      onClick={onSelect}
+    />
   )
 }
 
@@ -305,37 +356,48 @@ interface ForecastRowProps {
   occurrence: ReconciledOccurrence
   commitment: Commitment
   category: Category | undefined
+  account: BankAccount | undefined
   onSelect: () => void
 }
 
-/** Previsto: texto mais claro e a marca "previsto" (ou "atrasado", em destaque; com sugestão, avisa). */
-function ForecastRow({ occurrence, commitment, category, onSelect }: ForecastRowProps) {
+/** Previsto: título cinza e etiqueta "Previsto" (ou "Atrasado", em laranja). */
+function ForecastRow({ occurrence, commitment, category, account, onSelect }: ForecastRowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const late = occurrence.status === 'late'
-  const details = [
-    category ? categoryName(category, locale) : null,
-    commitment.kind === 'installment' ? commitment.person : null,
-    occurrence.installment && `${occurrence.installment.number}/${occurrence.installment.total}`,
-    occurrence.suggestions.length > 0 ? t('link.suggestions') : null,
-  ].filter(Boolean)
-
   return (
-    <button type="button" onClick={onSelect} className="flex w-full items-start gap-3 px-4 py-2.5 text-left active:bg-card-pressed">
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-ink-2">{commitment.name}</p>
-        <p className="truncate text-[13px] tracking-normal text-ink-2">
-          <span
-            className={`rounded-full border px-1.5 py-px text-[11px] uppercase ${late ? 'border-warning text-warning' : 'border-separator'}`}
-          >
-            {late ? t('link.late') : t('statement.forecast')}
-          </span>
-          {details.length > 0 && ` · ${details.join(' · ')}`}
-        </p>
-      </div>
-      <p className={`shrink-0 tabular-nums text-ink-2 ${occurrence.amount > 0 ? 'opacity-90' : ''}`}>
-        {formatMoney(occurrence.amount, locale, { signed: occurrence.amount > 0 })}
-      </p>
-    </button>
+    <Row
+      title={commitment.name}
+      muted
+      line1={
+        <>
+          {category ? categoryName(category, locale) : t('statement.uncategorized')}
+          {late ? <Tag tone="warning">{t('statement.late')}</Tag> : <Tag>{t('statement.forecast')}</Tag>}
+          {occurrence.installment && (
+            <Tag>{t('commitments.installmentOf', { number: occurrence.installment.number, total: occurrence.installment.total })}</Tag>
+          )}
+          {occurrence.suggestions.length > 0 && <Tag>{t('statement.suggestion')}</Tag>}
+        </>
+      }
+      line2={commitment.kind === 'installment' ? commitment.person : account ? accountLabel(account) : undefined}
+      amount={rowAmount(occurrence.amount, locale)}
+      positive={occurrence.amount > 0}
+      onClick={onSelect}
+    />
   )
+}
+
+/** Quando os bancos foram lidos pela última vez, no pé da lista. */
+function SyncFootnote({ running, synced }: { running: boolean; synced: string | undefined }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
+  let text = ''
+  if (running) text = t('statement.updating')
+  else if (synced) {
+    text =
+      localIsoDate(new Date(synced)) === localIsoDate()
+        ? t('statement.updatedToday', { time: formatTime(synced, locale) })
+        : t('statement.updatedAt', { when: formatDateTime(synced, locale) })
+  }
+  return text ? <p className="pt-7 text-center text-[13px] tracking-normal text-ink-2">{text}</p> : null
 }

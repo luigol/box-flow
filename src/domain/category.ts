@@ -7,6 +7,44 @@ export interface Category {
   id: string
   /** Nome dado pelo usuário. Sem ele, vale o nome padrão no idioma do app. */
   name?: string
+  /** Cor escolhida pelo usuário. Sem ela, vale a padrão (`categoryColor`). */
+  color?: CategoryColor
+}
+
+/**
+ * Cores de categoria: as cores de sistema do iOS, na ordem do iOS (docs/design.md, "Visual").
+ * Sem azul, que o app não usa, e sem cinza, que fica para "Outros" na barra do mês.
+ */
+export const CATEGORY_COLORS = ['red', 'orange', 'yellow', 'green', 'mint', 'teal', 'cyan', 'indigo', 'purple', 'pink', 'brown'] as const
+export type CategoryColor = (typeof CATEGORY_COLORS)[number]
+
+/** Cor padrão das categorias que vêm com o app. As maiores do dia a dia ficam com as primeiras cores. */
+const DEFAULT_COLORS: Record<string, CategoryColor> = {
+  housing: 'red',
+  food: 'orange',
+  transport: 'yellow',
+  leisure: 'green',
+  'ride-hailing': 'mint',
+  gifts: 'teal',
+  airfare: 'cyan',
+  accounting: 'indigo',
+  taxes: 'indigo',
+  subscriptions: 'purple',
+  health: 'pink',
+  clothing: 'brown',
+  loan: 'brown',
+  salary: 'green',
+  [TRANSFER]: 'teal',
+}
+
+/** Cor fixa da categoria: a escolhida, a padrão do app ou, numa categoria criada pelo usuário, uma tirada do id (sempre a mesma). */
+export function categoryColor(category: Pick<Category, 'id' | 'color'>): CategoryColor {
+  if (category.color && (CATEGORY_COLORS as readonly string[]).includes(category.color)) return category.color
+  const preset = DEFAULT_COLORS[category.id]
+  if (preset) return preset
+  let hash = 0
+  for (const char of category.id) hash = (hash * 31 + char.charCodeAt(0)) >>> 0
+  return CATEGORY_COLORS[hash % CATEGORY_COLORS.length] ?? 'red'
 }
 
 type Language = 'pt-BR' | 'en'
