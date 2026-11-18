@@ -2,13 +2,13 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Card, EmptyState } from '../components/Card'
-import { CategorySheet } from '../components/CategorySheet'
 import { CommitmentSheet } from '../components/CommitmentSheet'
 import { GlassButton, GlassTopBar, MonthCapsule } from '../components/GlassTopBar'
 import { DisclosureIcon, RefreshIcon } from '../components/icons'
 import { MonthBar } from '../components/MonthBar'
-import { OccurrenceSheet } from '../components/OccurrenceSheet'
+import { OccurrenceDetail } from '../components/OccurrenceDetail'
 import { Tag } from '../components/Tag'
+import { TxDetail } from '../components/TxDetail'
 import { useClassification } from '../db/classification'
 import { db, loadPluggySettings } from '../db/instance'
 import { useReconciliation } from '../db/reconciliation'
@@ -143,12 +143,13 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
       {topBar}
       {body}
       {editing && classification && ctx && (
-        <CategorySheet
+        <TxDetail
           entry={editing}
           categories={classification.categories}
           ctx={ctx}
           links={reconciliation?.byTx.get(editing.tx.id) ?? []}
           commitments={commitments ?? []}
+          bills={data?.bills ?? []}
           onCreateCommitment={(categoryId) => {
             setCreatingFrom({ entry: editing, ...(categoryId ? { categoryId } : {}) })
             setEditing(null)
@@ -160,9 +161,15 @@ export function Statement({ month, onMonthChange, onOpenBanks }: StatementProps)
         <CommitmentSheet fromTx={creatingFrom.entry.tx} fromCategoryId={creatingFrom.categoryId} onClose={() => setCreatingFrom(null)} />
       )}
       {openOccurrence && (
-        <OccurrenceSheet
+        <OccurrenceDetail
           occurrence={openOccurrence.occurrence}
           commitment={openOccurrence.commitment}
+          category={
+            openOccurrence.commitment.categoryId
+              ? classification?.categories.find((c) => c.id === openOccurrence.commitment.categoryId)
+              : undefined
+          }
+          account={openOccurrence.commitment.accountId ? data?.accounts.find((a) => a.id === openOccurrence.commitment.accountId) : undefined}
           onEdit={() => {
             setEditingCommitment(openOccurrence.commitment)
             setOpenOccurrence(null)

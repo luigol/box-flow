@@ -132,6 +132,27 @@
   }
 }
 
+@keyframes push-in {
+  from {
+    translate: 100% 0;
+  }
+}
+@keyframes push-out {
+  to {
+    translate: 100% 0;
+  }
+}
+@keyframes sheet-up {
+  from {
+    translate: 0 100%;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
 @layer components {
   /* Linhas de um bloco: separador recuado dos dois lados, alinhado ao texto, como nas listas do iPhone. */
   .inset-rows > * + * {
@@ -203,6 +224,28 @@
     background: linear-gradient(var(--canvas) 45%, transparent);
     z-index: -1;
     pointer-events: none;
+  }
+
+  /* Telas que entram pela direita (detalhe) e folhas que sobem. */
+  .push-in {
+    animation: push-in 0.34s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .push-out {
+    animation: push-out 0.26s cubic-bezier(0.4, 0, 0.8, 0.6) forwards;
+  }
+  .sheet-up {
+    animation: sheet-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .fade-in {
+    animation: fade-in 0.25s ease;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .push-in,
+    .push-out,
+    .sheet-up,
+    .fade-in {
+      animation: none;
+    }
   }
 
   /* Previsto na barra do mês: listrado. */

@@ -75,7 +75,13 @@ export const DisclosureIcon = () => (
   </Icon>
 )
 
-export const RefreshIcon = ({ spinning = false }: { spinning?: boolean }) => (
+export const CheckIcon = () => (
+  <Icon strokeWidth={2.4} width={20} height={20}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Icon>
+)
+
+export const RefreshIcon =({ spinning = false }: { spinning?: boolean }) => (
   <Icon strokeWidth={2} width={22} height={22} className={spinning ? 'animate-spin' : undefined}>
     <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
     <path d="M19.5 4.5v4h-4" />

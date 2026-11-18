@@ -36,6 +36,12 @@ export function formatDay(date: IsoDate, locale: string): string {
   return label.charAt(0).toLocaleUpperCase(locale) + label.slice(1)
 }
 
+/** "18/11/2026" a partir de AAAA-MM-DD (dia do calendário, sem fuso). */
+export function formatShortDate(date: IsoDate, locale: string): string {
+  const [year, month, day] = date.split('-').map(Number)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(new Date(year ?? 0, (month ?? 1) - 1, day ?? 1))
+}
+
 /** "17/11/2026 12:01" a partir de um momento em UTC, no fuso do aparelho. */
 export function formatDateTime(instant: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short', timeStyle: 'short' }).format(new Date(instant))
