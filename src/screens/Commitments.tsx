@@ -3,8 +3,10 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { EmptyState } from '../components/Card'
 import { CommitmentSheet } from '../components/CommitmentSheet'
+import { GlassButton, GlassTopBar } from '../components/GlassTopBar'
 import { PlusIcon } from '../components/icons'
-import { ScreenHeader } from '../components/ScreenHeader'
+import { ListRow } from '../components/ListRow'
+import { Tag } from '../components/Tag'
 import { useCommitments } from '../db/commitments'
 import { ignoreSuggestion, useDiscovery } from '../db/discovery'
 import { db } from '../db/instance'
@@ -15,7 +17,7 @@ import type { CardInstallmentPurchase } from '../domain/installments'
 import type { RecurringSuggestion } from '../domain/suggestions'
 import { formatMoney } from '../lib/format'
 
-/** Aba Compromissos: lista, sem troca de mês (docs/design.md, "Compromisso"). */
+/** Aba Compromissos: lista, sem troca de mês (docs/design.md, "Compromisso"), no estilo da Carteira. */
 export function Commitments() {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -47,83 +49,102 @@ export function Commitments() {
     owed.set(c.person, (owed.get(c.person) ?? 0) + upcoming(c).reduce((s, o) => s - o.amount, 0))
   }
 
+  /** Recorrente ou parcelado com pessoa: agenda (ou pessoa) e etiquetas na 1ª linha, categoria na 2ª. */
   const row = (c: Commitment) => {
     const next = upcoming(c)
     const category = c.categoryId ? categories.get(c.categoryId) : undefined
-    let schedule: string
+    const late = next.some((o) => o.status === 'late')
+    let line1: ReactNode
     if (c.kind === 'installment') {
-      schedule = next[0]?.installment ? t('commitments.installmentOf', next[0].installment) : t('commitments.done')
-    } else if (c.frequency === 'yearly') {
-      schedule = t('commitments.yearly', { date: `${String(c.day).padStart(2, '0')}/${String(c.start.month).padStart(2, '0')}` })
+      const installment = next[0]?.installment
+      line1 = (
+        <>
+          {c.person}
+          <Tag>{installment ? t('commitments.installmentOf', { number: installment.number, total: installment.total }) : t('commitments.done')}</Tag>
+          {late && <Tag tone="warning">{t('statement.late')}</Tag>}
+        </>
+      )
     } else {
-      schedule = t('commitments.monthly', { day: c.day })
+      const schedule =
+        c.frequency === 'yearly'
+          ? t('commitments.yearly', { date: `${String(c.day).padStart(2, '0')}/${String(c.start.month).padStart(2, '0')}` })
+          : t('commitments.monthly', { day: c.day })
+      line1 = (
+        <>
+          {schedule}
+          {c.end && next.length === 0 && <Tag>{t('commitments.ended')}</Tag>}
+          {late && <Tag tone="warning">{t('statement.late')}</Tag>}
+        </>
+      )
     }
-    const late = next.filter((o) => o.status === 'late').length
-    const pending = next.find((o) => o.status === 'pending')
-    const details = [
-      c.kind === 'installment' ? c.person : null,
-      schedule,
-      category ? categoryName(category, locale) : null,
-      c.kind === 'recurring' && c.end && next.length === 0 ? t('commitments.ended') : null,
-      pending ? t('commitments.next', { date: shortDate(pending.date) }) : null,
-    ].filter(Boolean)
     return (
-      <button key={c.id} type="button" onClick={() => setEditing(c)} className="flex w-full items-start gap-3 px-4 py-2.5 text-left active:bg-card-pressed">
-        <div className="min-w-0 flex-1">
-          <p className="truncate">{c.name}</p>
-          <p className="truncate text-[13px] tracking-normal text-ink-2">
-            {late > 0 && <span className="text-warning">{t('link.late')} · </span>}
-            {details.join(' · ')}
-          </p>
-        </div>
-        <Amount cents={c.direction === 'in' ? c.amount : -c.amount} locale={locale} />
-      </button>
+      <ListRow
+        key={c.id}
+        title={c.name}
+        line1={line1}
+        line2={category ? categoryName(category, locale) : t('statement.uncategorized')}
+        amount={formatMoney(c.amount, locale, { signed: c.direction === 'in' })}
+        positive={c.direction === 'in'}
+        onClick={() => setEditing(c)}
+      />
     )
   }
 
   /** Sugestão: "Criar" abre o formulário preenchido; "Ignorar" esconde (desfaz em Ajustes). */
-  const suggestionRow = (s: RecurringSuggestion) => {
-    const details = [
-      t('commitments.suggestionMonths', { count: s.months }),
-      accountName(s.latest.accountId),
-      s.latest.counterparty === 'person' ? t('commitments.toPerson') : null,
-    ].filter(Boolean)
-    return (
-      <div key={s.key} className="px-4 py-2.5">
-        <div className="flex items-start gap-3">
-          <div className="min-w-0 flex-1">
-            <p className="truncate">{s.text}</p>
-            <p className="text-[13px] tracking-normal text-ink-2">{details.join(' · ')}</p>
-          </div>
-          <Amount cents={s.direction === 'in' ? s.amount : -s.amount} locale={locale} />
-        </div>
-        <div className="mt-1.5 flex gap-5 text-[15px]">
-          <button type="button" className="text-accent" onClick={() => setEditing(s)}>
-            {t('commitments.create')}
-          </button>
-          <button type="button" className="text-ink-2" onClick={() => void ignoreSuggestion(s)}>
-            {t('commitments.ignore')}
-          </button>
-        </div>
+  const suggestionRow = (s: RecurringSuggestion) => (
+    <ListRow
+      key={s.key}
+      title={s.text}
+      line1={t('commitments.suggestionMonths', { count: s.months })}
+      line2={
+        <>
+          {accountName(s.latest.accountId)}
+          {s.latest.counterparty === 'person' && <Tag>{t('commitments.toPerson')}</Tag>}
+        </>
+      }
+      amount={formatMoney(s.amount, locale, { signed: s.direction === 'in' })}
+      positive={s.direction === 'in'}
+    >
+      <div className="mt-2.5 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setEditing(s)}
+          className="h-8 rounded-full bg-ink px-4 text-[15px] font-semibold text-canvas transition-[scale] duration-300 active:scale-95"
+        >
+          {t('commitments.create')}
+        </button>
+        <button
+          type="button"
+          onClick={() => void ignoreSuggestion(s)}
+          className="h-8 rounded-full bg-card-pressed px-4 text-[15px] font-semibold transition-[scale] duration-300 active:scale-95"
+        >
+          {t('commitments.ignore')}
+        </button>
       </div>
-    )
-  }
+    </ListRow>
+  )
 
-  /** Parcelado do cartão: só consulta (o banco já manda as parcelas futuras). */
+  /** Parcelado do cartão: só consulta (o banco já manda as parcelas futuras), com barra de andamento. */
   const cardRow = (p: CardInstallmentPurchase) => {
-    const details = [
-      t('commitments.cardPaid', { paid: p.paid, total: p.total }),
-      accountName(p.accountId),
-      t('commitments.until', { date: monthYear(p.lastDate, locale) }),
-    ].filter(Boolean)
+    const paid = t('commitments.cardPaid', { paid: p.paid, total: p.total })
     return (
-      <div key={`${p.accountId}|${p.description}|${p.purchaseDate ?? ''}|${p.total}`} className="flex items-start gap-3 px-4 py-2.5">
-        <div className="min-w-0 flex-1">
-          <p className="truncate">{p.description}</p>
-          <p className="text-[13px] tracking-normal text-ink-2">{details.join(' · ')}</p>
+      <ListRow
+        key={`${p.accountId}|${p.description}|${p.purchaseDate ?? ''}|${p.total}`}
+        title={p.description}
+        line1={
+          <>
+            {accountName(p.accountId)}
+            <Tag>{paid}</Tag>
+          </>
+        }
+        line2={t('commitments.endsIn', { date: monthYear(p.lastDate, locale) })}
+        amount={formatMoney(p.remaining, locale)}
+        positive={false}
+      >
+        <div role="img" aria-label={paid} className="mt-2.5 h-1 overflow-hidden rounded-full bg-card-pressed">
+          <div className="h-full rounded-full bg-ink-2" style={{ width: `${((p.paid / p.total) * 100).toFixed(1)}%` }} />
         </div>
-        <Amount cents={-p.remaining} locale={locale} />
-      </div>
+      </ListRow>
     )
   }
   const cardTotal = cardInstallments.reduce((s, p) => s + p.remaining, 0)
@@ -132,20 +153,19 @@ export function Commitments() {
 
   return (
     <>
-      <ScreenHeader
-        title={t('tabs.commitments')}
+      <GlassTopBar
         trailing={
-          <button
-            type="button"
-            onClick={() => setEditing('new')}
-            aria-label={t('commitments.add')}
-            className="mb-1 grid size-9 shrink-0 place-items-center rounded-full bg-accent text-on-accent active:opacity-80 [&_svg]:size-5"
-          >
+          <GlassButton label={t('commitments.add')} onClick={() => setEditing('new')}>
             <PlusIcon />
-          </button>
+          </GlassButton>
         }
       />
-      {nothing && <EmptyState title={t('commitments.emptyTitle')} body={t('commitments.emptyBody')} />}
+      <h1 className="mt-0.5 mb-1 px-1 text-[34px] leading-[1.12] font-bold tracking-[-0.025em]">{t('tabs.commitments')}</h1>
+      {nothing && (
+        <div className="mt-5">
+          <EmptyState title={t('commitments.emptyTitle')} body={t('commitments.emptyBody')} />
+        </div>
+      )}
       <Section title={t('commitments.suggestions')} footer={[t('commitments.suggestionsHint')]}>
         {suggestions.map(suggestionRow)}
       </Section>
@@ -175,28 +195,20 @@ export function Commitments() {
   )
 }
 
-/** Grupo da lista; some quando não há linhas. */
+/** Grupo da lista, com título grande; some quando não há linhas. */
 function Section({ title, footer, children }: { title: string; footer?: string[]; children: ReactNode[] }) {
   if (children.length === 0) return null
   return (
-    <section className="mb-7">
-      <h2 className="px-4 pb-1.5 text-[13px] tracking-normal text-ink-2">{title}</h2>
+    <section>
+      <h2 className="mx-4 mt-7 mb-3 text-[22px] leading-tight font-bold tracking-[-0.02em]">{title}</h2>
       <div className="inset-rows overflow-hidden rounded-block bg-card">{children}</div>
       {footer?.map((line) => (
-        <p key={line} className="px-4 pt-1.5 text-[13px] tracking-normal text-ink-2">
+        <p key={line} className="px-4 pt-2 text-[13px] leading-[1.38] tracking-normal text-ink-2">
           {line}
         </p>
       ))}
     </section>
   )
-}
-
-function Amount({ cents, locale }: { cents: number; locale: string }) {
-  return <p className={`shrink-0 tabular-nums ${cents > 0 ? 'text-positive' : ''}`}>{formatMoney(cents, locale, { signed: cents > 0 })}</p>
-}
-
-function shortDate(date: string): string {
-  return `${date.slice(8, 10)}/${date.slice(5, 7)}`
 }
 
 /** "dez. de 2026". */

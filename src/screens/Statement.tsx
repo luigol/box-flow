@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { Card, EmptyState } from '../components/Card'
 import { CommitmentSheet } from '../components/CommitmentSheet'
 import { GlassButton, GlassTopBar, MonthCapsule } from '../components/GlassTopBar'
-import { DisclosureIcon, RefreshIcon } from '../components/icons'
+import { RefreshIcon } from '../components/icons'
+import { Disclosure, ListRow as Row } from '../components/ListRow'
 import { MonthBar } from '../components/MonthBar'
 import { OccurrenceDetail } from '../components/OccurrenceDetail'
 import { Tag } from '../components/Tag'
@@ -225,14 +226,6 @@ function ReviewRow({ count, active, onToggle }: { count: number; active: boolean
   )
 }
 
-function Disclosure() {
-  return (
-    <span className="shrink-0 pt-[5px] text-ink-3">
-      <DisclosureIcon />
-    </span>
-  )
-}
-
 interface DayGroupsProps {
   items: Item[]
   accounts: BankAccount[]
@@ -302,32 +295,6 @@ const accountLabel = (account: BankAccount) => (account.last4 ? `${account.name}
 
 /** Valor da linha: sem sinal de menos; a entrada leva "+". */
 const rowAmount = (amount: number, locale: string) => formatMoney(Math.abs(amount), locale, { signed: amount > 0 })
-
-interface RowProps {
-  title: string
-  /** Previsto: título em cinza. */
-  muted?: boolean
-  line1: ReactNode
-  line2?: string | undefined
-  amount: string
-  positive: boolean
-  onClick: () => void
-}
-
-/** Linha no estilo da Carteira: nome em semibold, duas linhas cinza sem "·", valor cinza e seta. */
-function Row({ title, muted = false, line1, line2, amount, positive, onClick }: RowProps) {
-  return (
-    <button type="button" onClick={onClick} className="flex w-full items-start gap-2.5 px-4 py-[13px] text-left active:bg-card-pressed">
-      <div className="min-w-0 flex-1 leading-[1.3]">
-        <p className={`truncate font-semibold tracking-[-0.02em] ${muted ? 'text-ink-2' : ''}`}>{title}</p>
-        <p className="mt-0.5 truncate text-[15px] tracking-[-0.012em] text-ink-2">{line1}</p>
-        {line2 && <p className="truncate text-[15px] tracking-[-0.012em] text-ink-2">{line2}</p>}
-      </div>
-      <p className={`shrink-0 pt-0.5 text-[15px] tracking-[-0.012em] tabular-nums ${positive ? 'text-positive' : 'text-ink-2'}`}>{amount}</p>
-      <Disclosure />
-    </button>
-  )
-}
 
 interface EntryRowProps {
   entry: StatementEntry
