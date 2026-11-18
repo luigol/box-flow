@@ -14,7 +14,7 @@ Decisões tomadas antes do primeiro código (nov/2026). Quando uma decisão muda
 | PWA em TypeScript (React + Vite) | No iPhone, app nativo exige macOS para compilar e conta Apple paga (ou reassinar a cada 7 dias). PWA instala pelo Safari, sem Mac e sem custo. A lógica em TS pode ser reaproveitada num React Native depois. |
 | Dexie sobre IndexedDB | Banco local no navegador, **dentro do app**: os dados só existem no aparelho. Num PWA instalado o iOS raramente apaga os dados; o backup por arquivo cobre o risco. Ler e gravar um arquivo escolhido pelo usuário foi descartado: no iPhone seria preciso escolher o arquivo a cada abertura. |
 | Tailwind CSS e react-i18next | Bibliotecas prontas para o visual e para a tradução, aceitas desde que as proteções de [Segurança](#segurança-e-backup) valham. |
-| Abas embaixo | Extrato, Compromissos, lançamento rápido (+), Saldo e Ajustes, como nos apps do iPhone. |
+| Abas embaixo | Extrato, Compromissos, Saldo e Ajustes numa barra de vidro, com o lançamento rápido (+) num círculo ao lado, como nos apps do iPhone (revisto em 18/11/2026; antes o + ficava no meio da barra). |
 | GitHub Pages + Actions | Grátis em repositório público. |
 | Atualiza ao abrir o app e ao puxar a tela para baixo | O Meu Pluggy sincroniza com o banco a cada 24 h; sem tarefa em segundo plano no MVP. |
 
@@ -216,11 +216,19 @@ Uma regra só para o extrato e para o saldo previsto: a compra no cartão entra 
 - i18n desde o início com `react-i18next`: nenhum texto de interface fixo no código. Datas e valores formatados com `Intl` conforme o idioma.
 
 ## Visual
-Inspirado no estilo da Apple, adaptado a um app, não a uma vitrine de produto:
-- fundo cinza bem claro, cartões brancos com cantos de 12 a 28 px, sem borda e sem sombra; listas agrupadas como no app Ajustes do iPhone;
-- fonte do sistema (no iPhone, a SF Pro), títulos grandes com espaçamento apertado, números com largura fixa para alinhar valores;
-- um único azul para a ação principal; o resto é preto, cinza e branco. Verde só para valores que entram;
-- segue o modo claro ou escuro do aparelho.
+Revisto em 18/11/2026: a referência passou a ser o app **Carteira** do iPhone (iOS 26), não mais o site da Apple. Decidido num esboço com a tela de hoje ao lado da proposta.
+- **Um destaque por tela.** No Extrato, o gasto do mês em número grande, na fonte arredondada do sistema (`ui-rounded`, a SF Pro Rounded no iPhone); no detalhe, o valor do lançamento.
+- **Vidro só na navegação** (Liquid Glass): barra de abas, botões redondos e cápsulas no topo, folhas. Listas e blocos são sólidos. Sem barra de título: no Extrato, o mês fica numa cápsula de vidro no topo.
+- **Sem azul.** Ações e seleção na cor do texto (branco no escuro, preto no claro). Cor só onde tem significado: verde para entrada, laranja para atenção, vermelho para ação destrutiva e a cor de cada categoria.
+- **Um raio só** (26 px) para blocos e campos; botões em cápsula. Separador recuado, alinhado ao texto.
+- **Linha de lançamento:** nome em semibold; categoria e conta em duas linhas cinza, sem "·"; valor cinza, sem negrito e sem sinal de menos (a entrada tem "+" e fica verde); seta à direita.
+- **Etiquetas** retangulares ao lado da categoria: Previsto e parcela em cinza, Atrasado em laranja.
+- **Títulos de seção** grandes e sem caixa alta. Dias recentes como "Hoje" e "Ontem".
+- **Sem categoria** não pinta a linha de laranja: o Extrato mostra um item "Para revisar" no topo.
+- **Barra do mês**, como a do Armazenamento do iPhone: o total são as entradas; cada categoria de gasto tem uma cor (as 5 maiores; o resto vira "Outros"), o previsto fica listrado e o que sobra aparece livre, com o valor dentro. **Cor fixa por categoria**, com padrão na ordem do iOS e editável.
+- **Detalhe do lançamento:** tocar numa linha abre uma tela com o valor grande, um bloco com estado, conta, texto do banco e total, as linhas de categoria e compromisso, os dados do cartão e as ações em cápsula, cada uma com uma explicação embaixo. A categoria é escolhida a partir dela.
+- **Barra de abas** de vidro, como a do app Arquivos: a seleção é uma pílula; ao tocar, vira uma lente que desliza até a aba, e dá para segurar e arrastar. O lançamento rápido (+) fica num círculo ao lado da barra. Botões de vidro crescem ao serem tocados.
+- Fonte do sistema (no iPhone, a SF Pro), números com largura fixa; segue o modo claro ou escuro do aparelho.
 
 ## Consentimento
 - O app **avisa** quando o `consentExpiresAt` de um banco estiver perto (ex.: 30 dias antes) e explica como reconectar.
