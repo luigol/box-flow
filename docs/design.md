@@ -43,7 +43,8 @@ GET  /bills?accountId={id}                         faturas do cartão: billClosi
   - Não há ID que agrupe as parcelas de uma compra. Agrupar por **descrição sem o sufixo `NN/NN`** + `totalInstallments` + `purchaseDate`/`transactionDateTime` (iguais em todas as parcelas). Não usar o valor: a antecipação muda o valor.
   - **Antecipação de parcelas:** as parcelas antecipadas passam para a fatura aberta e o desconto vem numa transação separada ("Desc Antecipa Parcelas").
 - **Fatura de uma compra:** `billId` só aparece depois que a compra liquida (`POSTED`). Antes disso, `creditCardMetadata.billForecastDate` (`AAAA-MM`) diz em qual fatura ela vai cair. O dia do vencimento vem de `/bills` (`dueDate`), e varia com fim de semana e feriado. Não é preciso configurar fechamento nem vencimento.
-- **Saldo:** na conta corrente, `balance` é o saldo disponível. No cartão, `balance` é o **limite usado** (fatura aberta + parcelas futuras), mas não bate no centavo com a soma das transações pendentes.
+- **Saldo:** na conta corrente, `balance` é o saldo disponível. No cartão, `balance` é o **limite usado** (fatura aberta + parcelas futuras). Ele bate no centavo com a soma das transações cujo dinheiro ainda não saiu, **tirando o pagamento da fatura anterior**, que entra como crédito na fatura aberta (conferido em 18/11/2026 em três cartões).
+- **Investimentos:** `GET /investments?itemId={id}` (paginado por `page`/`totalPages`) funciona no Meu Pluggy. Traz `type`/`subtype` (ex.: `FIXED_INCOME`/`CDB`), `name`, `balance` e `status` (`ACTIVE` ou `TOTAL_WITHDRAWAL`, resgatado). Num banco testado, a aplicação automática da conta aparece como vários CDBs; no outro, não veio nenhum.
 - `connectToken` não é `itemId`; só serve para abrir o widget.
 - Consentimento dura 1 ano por banco (`consentExpiresAt`). Depois, o usuário reconecta e o `itemId` pode mudar: guardar transações pelo `id` delas.
 - **Em aberto:** o `id` de uma transação `PENDING` se mantém quando ela vira `POSTED`? Se não se mantiver, a importação precisa reconhecer a mesma compra pela descrição + valor + parcela + `transactionDateTime`. Observado: no cartão, a compra fica `PENDING` até a fatura **fechar**, então a resposta só aparece depois de um fechamento.
@@ -53,8 +54,7 @@ GET  /bills?accountId={id}                         faturas do cartão: billClosi
 
 ### Conta
 Onde o dinheiro está ou com quem há saldo.
-- **Banco** e **cartão**: vêm da Pluggy.
-- **Espécie**: manual, em qualquer moeda (ex.: dólares em espécie), convertida pela cotação para exibir.
+- **Banco**, **cartão** e **investimento**: vêm da Pluggy.
 - **Pessoa**: manual, **nos dois sentidos**. Quanto eu devo a alguém ou quanto alguém me deve (ex.: parcelamento combinado com um familiar, dinheiro que um amigo devolveu).
 
 Pagar uma pessoa ou mover dinheiro entre contas é **transferência**, não gasto.
@@ -73,6 +73,7 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 **Tipos**
 - **Recorrente** (mensal ou anual), de saída ou de entrada (ex.: salário): categoria, valor, dia, conta e, opcional, o texto do banco que o identifica.
 - **Parcelado com pessoa**: pessoa, motivo e categoria, valor da parcela, total de parcelas, quantas já foram pagas e dia do mês. Cada parcela paga é gasto na categoria (o mês é quando o dinheiro sai); "quanto devo a cada pessoa" é a soma das parcelas que faltam.
+- **Receita parcelada** (grill do saldo, 19/11/2026): o parcelado também serve para entrada com prazo (ex.: um contrato de 2 meses). Quem paga, valor que chega, total de parcelas, quantas já foram recebidas e o dia. Aparece em Receitas, com a parcela ("1 de 2").
 - **Parcelado do cartão**: reconhecido sozinho a partir do banco (descrição sem "NN/NN" + total de parcelas + data da compra), só para consulta, com andamento e quanto falta. Não gera previstos: o banco já manda as parcelas futuras (conferido em 17/11/2026 em cartões de dois bancos: todas as parcelas futuras chegam como pendentes, cada uma com o mês da fatura prevista).
 
 **Valor previsto**
@@ -86,6 +87,7 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 
 **Previsto → realizado** (revê "o usuário sempre confirma", ver Conciliação)
 - Lançamento com o **texto do banco** do compromisso, até **10 dias** antes ou depois da data prevista, realiza o previsto **sozinho**. O valor não precisa bater; a diferença aparece. Dá para desfazer.
+- **"O valor precisa bater"** (opção do compromisso, grill do saldo): só o lançamento com **exatamente** o valor do compromisso o realiza. Serve para duas receitas que chegam com o mesmo texto (dois salários pagos pela mesma empresa). O lançamento que casou pelo valor sai dos compromissos sem essa opção que têm o mesmo texto: o mais específico vence.
 - **Pix para pessoa** (o mesmo Pix pode pagar várias coisas): o app **sugere** e o usuário **confirma**, podendo dividir.
 - Um previsto pode juntar **vários lançamentos** (salário que chega em vários Pix: vale a soma no mês) e um lançamento pode realizar **vários previstos**.
 - Compra **pendente** no cartão já conta como realizada.
@@ -121,7 +123,7 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 - "Criar" abre o formulário preenchido a partir do lançamento mais recente, com o valor típico e a categoria dele, e liga o histórico (como "Vincular ao extrato"). "Ignorar" é guardado pela chave texto + sentido, vai no `box-flow.json` e se desfaz em Ajustes → Sugestões ignoradas.
 - Nos dados reais, sem nenhum compromisso, o critério acha os recorrentes com texto (assinaturas, contador, Pix mensais), com um falso (corridas de um app que aparecem poucas vezes por mês). Salário recebido em 3 ou mais Pix por mês não é sugerido: cria-se pelo formulário.
 
-Fora desta etapa: saldo pré e pós-pago (usa os compromissos) e contas de pessoa.
+Fora desta etapa: contas de pessoa. O saldo usa os compromissos (ver "Mês e saldo").
 
 ### Regra de classificação
 Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex.: `DL*99 RIDE` → Transporte por app. As regras iniciais podem ser importadas de um arquivo (o app precisa de **importar regras**).
@@ -146,11 +148,24 @@ Padrão na descrição do banco → categoria, valor, repetição, etiquetas. Ex
 ## Mês e saldo
 - **Mês = mês do calendário.**
 - **Extrato do mês:** na conta, pelo dia; no cartão, pelo mês em que o dinheiro sai. Cartão sem nenhuma fatura fechada ainda: o mês previsto pelo banco ou, sem previsão, o da compra. Mais recente primeiro. Sem totais até existirem as regras de transferência (pagamento de fatura contaria em dobro). Implementado em `src/domain/statement.ts`.
-- **Pré-pago**: saldo atual das contas − tudo que já está comprometido (faturas abertas, parcelas futuras, o que **eu devo** a pessoas, previstos de saída). Não conta receita prevista nem o que outras pessoas me devem. Objetivo: não comprometer o salário do futuro.
-  - O comprometido no cartão é a **soma das transações**, item a item. O `balance` do banco aparece ao lado, com a diferença.
-- **Pós-pago**: pré-pago + receitas previstas + o que pessoas me devem.
-- O usuário alterna entre os dois modos.
 - **Horizonte da previsão:** 12 meses ou até a última parcela, o que for mais longe.
+
+### Aba Saldo (grill de 18 e 19/11/2026)
+Mostra o que está comprometido e o saldo previsto mês a mês, partindo do dinheiro real de hoje. Os nomes "pré-pago" e "pós-pago" saíram.
+- **Saldo atual:** saldo das contas + **investimentos** de resgate a qualquer dia (os ativos que a Pluggy devolve; o app os lê a cada atualização e eles vão no `box-flow.json`). Um botão **Investimentos**, ligado por padrão, tira os investimentos da conta.
+- **Janela:** um botão de calendário escolhe **1, 3, 6 ou 12 meses** (padrão 3, contando o mês atual). O app lembra a escolha.
+- **Para cada mês da janela:**
+  - **Comprometido:** as faturas que vencem no mês e os compromissos de saída (inclusive os atrasados de meses anteriores, que caem no mês atual);
+  - **Conta + a receber:** o saldo que vem do mês anterior (no mês atual, o saldo atual) mais as receitas previstas;
+  - **Saldo previsto** no último dia do mês: conta + a receber − comprometido. Passa para o mês seguinte.
+- **Com receitas | Sem receitas:** o usuário alterna. "Sem receitas" desconsidera exatamente as receitas previstas.
+- **Destaque:** o saldo previsto no último dia da janela ("Saldo previsto em 31/01/2027") e, embaixo, só o número do outro modo. Sem frases de juízo ("paga tudo até…", "sobra", "falta"): saldo negativo aparece com o sinal de menos, sem cor.
+- **Fatura de um mês futuro:** só o que já está nela (compras feitas e parcelas futuras), sem estimar o gasto que ainda vai acontecer. Os meses distantes têm pouco cartão por isso.
+- **Cartão:** o comprometido é a soma dos lançamentos cujo dinheiro ainda não saiu, **sem os pagamentos de fatura** (que entram no cartão como crédito). Conferido em 18/11/2026: bate no centavo com o `balance` de cada cartão. O saldo do banco só aparece se houver diferença, como aviso.
+- **Atrasado com sugestão do extrato** (Pix a confirmar): provavelmente já foi pago, então **não entra** no saldo, e um item "Para revisar" avisa. Atrasado sem sugestão continua contando até chegar ou até "não aconteceu".
+- **Salário:** sem média. Vale o que o usuário cadastrou, cada receita com o seu prazo.
+- Um saldo só, com todas as contas juntas: transferências entre contas próprias se anulam.
+- **Fora:** dinheiro em espécie (não entra no app) e o que pessoas me devem (fica para as contas de pessoa). Gasto do dia a dia ainda não feito não entra na previsão, como na planilha.
 
 ## Segurança e backup
 - Credenciais da Pluggy ficam no armazenamento do app. No MVP, quem protege é o bloqueio do celular.
@@ -233,7 +248,15 @@ Revisto em 18/11/2026: a referência passou a ser o app **Carteira** do iPhone (
 - As linhas de recorrentes não mostram mais "próximo: dd/mm": a agenda ("Todo dia 25", "Todo ano em 05/03") já diz quando cai.
 
 **Em aberto** (redesenho; aplicado no Extrato, no detalhe, na barra de abas e em Compromissos):
-- Saldo, Ajustes, Bancos, Categorias e regras, as folhas e os formulários só têm as regras da base (sem azul, um raio, separador recuado, sem caixa alta). Falta o desenho de cada um, num esboço antes. Ideia para o Saldo: um cartão colorido por conta, como na Carteira.
+- Ajustes, Bancos, Categorias e regras, as folhas e os formulários só têm as regras da base (sem azul, um raio, separador recuado, sem caixa alta). Falta o desenho de cada um, num esboço antes.
+
+**Aba Saldo** (esboço aprovado em 19/11/2026):
+- No topo, dois botões de vidro: a **janela** (ícone de calendário e "3 meses"), que abre um menu de vidro com 1, 3, 6 e 12 meses; e **Investimentos** com o botão liga/desliga do iOS 26 (ao tocar, a bolinha vira uma lente de vidro maior que o trilho, com borda de arco-íris, desliza e volta a ser branca com um quique; segurando, dá para arrastar).
+- Título grande "Saldo" e o seletor **Com receitas | Sem receitas**.
+- Destaque: o saldo previsto, com "Saldo previsto em dd/mm/aaaa" e o número do outro modo embaixo.
+- "Para revisar" (laranja, uma vez), quando há atrasado com Pix a confirmar.
+- **Mês a mês:** um bloco por mês com a barra do Armazenamento. O total é a conta + a receber; as partes são as faturas e os compromissos; o espaço escuro é o saldo previsto, com o valor dentro. Tocar abre o detalhe do mês: saldo atual ou anterior, a receber, faturas (com vencimento) e compromissos.
+- **Hoje:** cada conta com um cartãozinho na cor do banco, os investimentos (riscados quando desligados) e o saldo atual. **Cartões:** quanto falta pagar em cada um e o vencimento da próxima fatura.
 - Tela para escolher a cor de cada categoria, em Ajustes → Categorias. O campo já existe e vai no backup.
 - Gesto de voltar arrastando da borda, no detalhe.
 - Botão "···" no topo do Extrato, quando houver o que pôr nele.

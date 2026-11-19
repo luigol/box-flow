@@ -24,6 +24,16 @@ export interface BankAccount {
   balance: Cents
 }
 
+/** Investimento ativo vindo do banco (ex.: CDB de resgate diário). Entra no saldo atual, se o usuário quiser. */
+export interface Investment {
+  id: string
+  /** Conexão (item) da Pluggy: a atualização substitui os investimentos dela. */
+  itemId: string
+  name: string
+  /** Saldo atual, em reais. */
+  balance: Cents
+}
+
 /** Transação vinda do banco, já no formato do app. */
 export interface BankTransaction {
   id: string

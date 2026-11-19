@@ -1,4 +1,4 @@
-import type { PluggyAccount, PluggyBill, PluggyItem, PluggyTransaction } from './types'
+import type { PluggyAccount, PluggyBill, PluggyInvestment, PluggyItem, PluggyTransaction } from './types'
 
 const BASE_URL = 'https://api.pluggy.ai'
 
@@ -78,17 +78,24 @@ export function createPluggyClient(credentials: PluggyCredentials, fetchFn: Fetc
     },
 
     /** Faturas fechadas do cartão. Aqui a paginação é por número de página. */
-    async listBills(accountId: string): Promise<PluggyBill[]> {
-      const all: PluggyBill[] = []
-      for (let page = 1, totalPages = 1; page <= totalPages; page++) {
-        const body: NumberedPage<PluggyBill> = await get<NumberedPage<PluggyBill>>(
-          `/bills?accountId=${encodeURIComponent(accountId)}&page=${page}`,
-        )
-        all.push(...body.results)
-        totalPages = body.totalPages
-      }
-      return all
+    listBills(accountId: string): Promise<PluggyBill[]> {
+      return allPages<PluggyBill>(`/bills?accountId=${encodeURIComponent(accountId)}`)
     },
+
+    /** Investimentos da conexão, ativos e resgatados (paginação por número de página). */
+    listInvestments(itemId: string): Promise<PluggyInvestment[]> {
+      return allPages<PluggyInvestment>(`/investments?itemId=${encodeURIComponent(itemId)}`)
+    },
+  }
+
+  async function allPages<T>(path: string): Promise<T[]> {
+    const all: T[] = []
+    for (let page = 1, totalPages = 1; page <= totalPages; page++) {
+      const body: NumberedPage<T> = await get<NumberedPage<T>>(`${path}&page=${page}`)
+      all.push(...body.results)
+      totalPages = body.totalPages
+    }
+    return all
   }
 }
 

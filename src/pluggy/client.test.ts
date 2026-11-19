@@ -154,4 +154,18 @@ describe('createPluggyClient: conversa com a API da Pluggy', () => {
 
     expect(bills.map((b) => b.id)).toEqual(['b1', 'b2', 'b3'])
   })
+
+  it('busca todas as páginas de investimentos da conexão', async () => {
+    const pluggy = fakePluggy()
+    pluggy.on('GET /investments', (url) => {
+      if (url.searchParams.get('itemId') !== 'item1') return { page: 1, totalPages: 1, results: [] }
+      const page = Number(url.searchParams.get('page') ?? '1')
+      return { page, totalPages: 2, results: page === 1 ? [{ id: 'i1' }, { id: 'i2' }] : [{ id: 'i3' }] }
+    })
+    const client = createPluggyClient(CREDENTIALS, pluggy.fetch)
+
+    const investments = await client.listInvestments('item1')
+
+    expect(investments.map((i) => i.id)).toEqual(['i1', 'i2', 'i3'])
+  })
 })

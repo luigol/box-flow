@@ -70,6 +70,7 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
     await phone.commitmentUnlinks.put({ txId: 't9', commitmentId: 'k1' })
     await phone.skips.put({ key: 'k1:2027-01' })
     await phone.ignoredSuggestions.put({ key: 'STREAMINGEXEMPLO|out', text: 'STREAMING EXEMPLO', direction: 'out' })
+    await phone.investments.put({ id: 'cdb1', itemId: 'item1', name: 'CDB EXEMPLO', balance: 250_000 })
 
     const newPhone = freshDb()
     const fileContent = JSON.parse(JSON.stringify(await exportVault(phone))) as VaultPayload
@@ -101,6 +102,7 @@ describe('applyVault: abrir o conteúdo do arquivo trancado', () => {
       listAccounts: async () => [{ id: 'acc1', itemId: 'item1', type: 'BANK' as const, name: 'CONTA', balance: 0, currencyCode: 'BRL' }],
       listTransactions: async () => bankNow,
       listBills: async () => [],
+      listInvestments: async () => [],
     }
     const db = freshDb()
 

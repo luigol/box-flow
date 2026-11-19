@@ -60,6 +60,21 @@ export interface PluggyItem {
   [ignored: string]: unknown
 }
 
+/** Investimento (ex.: CDB). `GET /investments?itemId=` devolve ativos e resgatados. */
+export interface PluggyInvestment {
+  id: string
+  itemId: string
+  name: string
+  /** FIXED_INCOME, MUTUAL_FUND, EQUITY… */
+  type?: string | null
+  subtype?: string | null
+  /** Saldo atual, em reais. */
+  balance?: number | null
+  /** ACTIVE, PENDING ou TOTAL_WITHDRAWAL (resgatado). */
+  status?: string | null
+  [ignored: string]: unknown
+}
+
 export interface PluggyAccount {
   id: string
   itemId: string

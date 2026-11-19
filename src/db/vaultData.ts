@@ -18,6 +18,7 @@ const BACKUP_TABLES = [
   'commitmentUnlinks',
   'skips',
   'ignoredSuggestions',
+  'investments',
 ] as const
 
 /**

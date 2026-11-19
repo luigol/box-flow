@@ -1,6 +1,6 @@
 import Dexie, { type DexieOptions, type EntityTable, type Table, type Transaction } from 'dexie'
 import type { CommitmentLink } from '../domain/reconcile'
-import type { BankAccount, BankTransaction } from '../domain/bank'
+import type { BankAccount, BankTransaction, Investment } from '../domain/bank'
 import type { CardBill } from '../domain/card'
 import { DEFAULT_CATEGORIES, type Category, type Rule } from '../domain/category'
 import type { Commitment } from '../domain/commitment'
@@ -65,6 +65,8 @@ export class BoxFlowDb extends Dexie {
   skips!: EntityTable<{ key: string }, 'key'>
   /** Sugestões de recorrente que o usuário mandou ignorar (o texto fica para poder mostrar de novo em Ajustes). */
   ignoredSuggestions!: EntityTable<IgnoredSuggestion, 'key'>
+  /** Investimentos ativos de cada conexão; a atualização substitui os da conexão. */
+  investments!: EntityTable<Investment, 'id'>
 
   constructor(name = 'box-flow', options?: DexieOptions) {
     super(name, options)
@@ -85,6 +87,7 @@ export class BoxFlowDb extends Dexie {
       skips: 'key',
     })
     this.version(5).stores({ ignoredSuggestions: 'key' })
+    this.version(6).stores({ investments: 'id, itemId' })
     // Banco criado do zero (sem passar pelo upgrade): também recebe as categorias padrão.
     this.on('populate', seedCategories)
   }

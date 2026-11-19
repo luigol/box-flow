@@ -1,6 +1,6 @@
-import type { BankAccount, BankTransaction, CardDetails } from '../domain/bank'
+import type { BankAccount, BankTransaction, CardDetails, Investment } from '../domain/bank'
 import type { CardBill, IsoDate } from '../domain/card'
-import type { PluggyAccount, PluggyBill, PluggyCreditCardMetadata, PluggyTransaction } from './types'
+import type { PluggyAccount, PluggyBill, PluggyCreditCardMetadata, PluggyInvestment, PluggyTransaction } from './types'
 
 /** Fuso fixo: uma compra é do dia em que foi feita no Brasil, mesmo com o celular em outro fuso. */
 const TIME_ZONE = 'America/Sao_Paulo'
@@ -60,6 +60,11 @@ function cardDetails(cc: PluggyCreditCardMetadata): CardDetails {
   }
   if (cc.purchaseDate) card.purchaseDate = localDay(cc.purchaseDate)
   return card
+}
+
+/** Investimento: só o necessário para o saldo (nome e quanto vale hoje). */
+export function fromPluggyInvestment(raw: PluggyInvestment): Investment {
+  return { id: raw.id, itemId: raw.itemId, name: raw.name, balance: toCents(raw.balance ?? 0) }
 }
 
 export function fromPluggyAccount(raw: PluggyAccount): BankAccount {

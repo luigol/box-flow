@@ -1,7 +1,7 @@
 import { IDBKeyRange, indexedDB } from 'fake-indexeddb'
 import { describe, expect, it } from 'vitest'
 import { BoxFlowDb } from '../db/db'
-import type { PluggyAccount, PluggyBill, PluggyItem, PluggyTransaction } from '../pluggy/types'
+import type { PluggyAccount, PluggyBill, PluggyInvestment, PluggyItem, PluggyTransaction } from '../pluggy/types'
 import { syncConnection } from './sync'
 
 // Dados inventados: o repositório é público.
@@ -35,12 +35,14 @@ function fakeBank() {
     ] as PluggyAccount[],
     transactions: { acc1: [] as PluggyTransaction[] } as Record<string, PluggyTransaction[]>,
     bills: {} as Record<string, PluggyBill[]>,
+    investments: [] as PluggyInvestment[],
   }
   const client = {
     getItem: async () => state.item,
     listAccounts: async () => state.accounts,
     listTransactions: async (accountId: string) => state.transactions[accountId] ?? [],
     listBills: async (accountId: string) => state.bills[accountId] ?? [],
+    listInvestments: async () => state.investments,
   }
   return { state, client }
 }
@@ -80,6 +82,26 @@ describe('syncConnection: atualização a partir da Pluggy', () => {
     expect(await db.bills.toArray()).toEqual([
       { id: 'b1', accountId: 'card1', dueDate: '2026-11-15', total: 21030, payments: [] },
     ])
+  })
+
+  it('investimentos: guarda só os ativos, em centavos; a atualização seguinte substitui os da conexão', async () => {
+    const db = freshDb()
+    const bank = fakeBank()
+    bank.state.investments = [
+      { id: 'cdb1', itemId: 'item1', name: 'CDB EXEMPLO', type: 'FIXED_INCOME', balance: 1234.56, status: 'ACTIVE' },
+      { id: 'cdb2', itemId: 'item1', name: 'CDB RESGATADO', balance: 0, status: 'TOTAL_WITHDRAWAL' },
+    ]
+    await syncConnection(db, bank.client, 'item1', TODAY)
+    const first = (await db.investments.toArray()).map((i) => [i.id, i.name, i.balance])
+
+    await db.investments.put({ id: 'outro', itemId: 'item2', name: 'DE OUTRA CONEXAO', balance: 50_000 })
+    bank.state.investments = [{ id: 'cdb3', itemId: 'item1', name: 'CDB NOVO', balance: 10, status: 'ACTIVE' }]
+    await syncConnection(db, bank.client, 'item1', TODAY)
+
+    expect({ first, second: (await db.investments.orderBy('id').toArray()).map((i) => [i.id, i.balance]) }).toEqual({
+      first: [['cdb1', 'CDB EXEMPLO', 123_456]],
+      second: [['cdb3', 1_000], ['outro', 50_000]],
+    })
   })
 
   it('período aberto fica igual ao banco: o que sumiu de lá some daqui', async () => {

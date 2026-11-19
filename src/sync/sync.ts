@@ -2,12 +2,12 @@ import type { BoxFlowDb, StoredBill } from '../db/db'
 import type { BankTransaction } from '../domain/bank'
 import { addMonths, currentMonth } from '../lib/month'
 import type { createPluggyClient } from '../pluggy/client'
-import { fromPluggyAccount, fromPluggyBill, fromPluggyTransaction } from '../pluggy/convert'
+import { fromPluggyAccount, fromPluggyBill, fromPluggyInvestment, fromPluggyTransaction } from '../pluggy/convert'
 
 /** O que a atualização usa da Pluggy (o cliente real ou um de mentira nos testes). */
 export type SyncClient = Pick<
   ReturnType<typeof createPluggyClient>,
-  'getItem' | 'listAccounts' | 'listTransactions' | 'listBills'
+  'getItem' | 'listAccounts' | 'listTransactions' | 'listBills' | 'listInvestments'
 >
 
 /**
@@ -37,9 +37,12 @@ export async function syncConnection(db: BoxFlowDb, client: SyncClient, itemId: 
     }
   }
 
+  // Investimentos: só os ativos (o resgatado vem com saldo zero e status TOTAL_WITHDRAWAL).
+  const investments = (await client.listInvestments(itemId)).filter((i) => i.status === 'ACTIVE').map(fromPluggyInvestment)
+
   const isOpen = openPeriod(today)
 
-  await db.transaction('rw', [db.accounts, db.transactions, db.bills, db.connections], async () => {
+  await db.transaction('rw', [db.accounts, db.transactions, db.bills, db.connections, db.investments], async () => {
     const incoming = new Set(transactions.map((t) => t.id))
     const stored = await db.transactions.where('accountId').anyOf(accounts.map((a) => a.id)).toArray()
     const closed = new Set(stored.filter((t) => !isOpen(t)).map((t) => t.id))
@@ -49,6 +52,9 @@ export async function syncConnection(db: BoxFlowDb, client: SyncClient, itemId: 
     await db.accounts.bulkPut(accounts)
     await db.transactions.bulkPut(transactions.filter((t) => !closed.has(t.id)))
     await db.bills.bulkPut(bills)
+    // Investimento é uma foto de hoje: os da conexão são trocados pelos que vieram agora.
+    await db.investments.where('itemId').equals(itemId).delete()
+    await db.investments.bulkPut(investments)
     await db.connections.put({
       itemId,
       status: item.status,
