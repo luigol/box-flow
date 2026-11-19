@@ -12,7 +12,7 @@ import { syncNow } from './sync/runSync'
 
 export function App() {
   const [tab, setTab] = useState<Tab>('statement')
-  // O mês escolhido vale para Extrato, Compromissos e Saldo ao mesmo tempo.
+  // O mês escolhido no Extrato. O Saldo tem a sua própria janela (1, 3, 6 ou 12 meses).
   const [month, setMonth] = useState<YearMonth>(() => currentMonth())
   const [settingsPage, setSettingsPage] = useState<'main' | 'banks' | 'categories'>('main')
   const [adding, setAdding] = useState(false)
@@ -35,7 +35,7 @@ export function App() {
   const screens: Record<Tab, ReactElement> = {
     statement: <Statement month={month} onMonthChange={setMonth} onOpenBanks={openBanks} />,
     commitments: <Commitments />,
-    balance: <Balance month={month} onMonthChange={setMonth} />,
+    balance: <Balance />,
     settings:
       settingsPage === 'banks' ? (
         <BankSettings onBack={() => setSettingsPage('main')} />

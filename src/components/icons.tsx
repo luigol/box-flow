@@ -50,6 +50,26 @@ export const SlidersIcon = () => (
   </Icon>
 )
 
+export const CalendarIcon = () => (
+  <Icon width={22} height={22}>
+    <rect x="3.5" y="5" width="17" height="15.5" rx="3" />
+    <path d="M3.5 9.5h17M8 3v4M16 3v4" />
+    <circle cx="8.5" cy="13.5" r="0.7" fill="currentColor" />
+    <circle cx="12" cy="13.5" r="0.7" fill="currentColor" />
+    <circle cx="15.5" cy="13.5" r="0.7" fill="currentColor" />
+    <circle cx="8.5" cy="17" r="0.7" fill="currentColor" />
+    <circle cx="12" cy="17" r="0.7" fill="currentColor" />
+  </Icon>
+)
+
+/** Investimento: a linha que sobe. */
+export const GrowthIcon = () => (
+  <Icon strokeWidth={2} width={16} height={16}>
+    <path d="m4 16 5-5 3 3 7-7" />
+    <path d="M15 7h4v4" />
+  </Icon>
+)
+
 export const PlusIcon = () => (
   <Icon strokeWidth={2.2}>
     <path d="M12 5v14M5 12h14" />

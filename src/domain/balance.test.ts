@@ -93,6 +93,23 @@ describe('balance: saldo previsto mês a mês (docs/design.md, "Aba Saldo")', ()
     }).toEqual({ outflows: ['contador:2026-10'], inflows: ['salario:2026-10'], review: ['condominio:2026-11'] })
   })
 
+  it('cartões: quanto falta pagar em cada um, além da janela, e o vencimento da próxima fatura', () => {
+    const other: BankAccount = { id: 'outro', itemId: 'item1', kind: 'credit_card', name: 'OUTRO', balance: 0 }
+    const result = balance(input({
+      accounts: [CHECKING, CARD, other],
+      bills: [{ id: 'nov', accountId: 'cartao', dueDate: '2026-11-10', total: 0, payments: [] }],
+      transactions: [
+        { id: 'a', accountId: 'cartao', date: '2026-11-15', status: 'pending', description: 'A', amount: -15_000, card: { billForecastMonth: '2026-12' } },
+        { id: 'b', accountId: 'cartao', date: '2026-12-31', status: 'pending', description: 'B', amount: -5_000, card: { billForecastMonth: '2027-02' } },
+      ],
+    }))
+
+    expect(result.cards).toEqual([
+      { accountId: 'cartao', total: 20_000, next: '2026-12-10' },
+      { accountId: 'outro', total: 0 },
+    ])
+  })
+
   it('com "Investimentos" desligado, o saldo atual e o previsto partem só das contas', () => {
     const result = balance(input({
       includeInvestments: false,

@@ -45,6 +45,8 @@ export interface Balance {
   months: BalanceMonth[]
   /** Atrasados com Pix sugerido: fora do saldo até o usuário confirmar ("Para revisar"). */
   review: ReconciledOccurrence[]
+  /** Cada cartão: quanto falta pagar (todas as faturas, além da janela) e o vencimento da próxima. */
+  cards: { accountId: string; total: Cents; next?: IsoDate }[]
 }
 
 /** Saldo previsto mês a mês, partindo do dinheiro de hoje (docs/design.md, "Aba Saldo"). */
@@ -77,7 +79,14 @@ export function balance(input: BalanceInput): Balance {
     withoutIncome -= committed
     months.push({ month, bills, outflows, inflows, committed, receivable, start, end: { withIncome, withoutIncome } })
   }
-  return { current, months, review }
+  const cards = input.accounts
+    .filter((a) => a.kind === 'credit_card')
+    .map((card) => {
+      const due = cardBills.filter((b) => b.accountId === card.id)
+      const next = due.map((b) => b.date).sort()[0]
+      return { accountId: card.id, total: due.reduce((s, b) => s + b.amount, 0), ...(next ? { next } : {}) }
+    })
+  return { current, months, review, cards }
 }
 
 /** Fatura de um cartão num mês: o que ainda vai sair, positivo. */

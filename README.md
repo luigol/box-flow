@@ -8,14 +8,14 @@ App de finanças pessoais **open source** e **local-first**. Ele puxa as transa�
 - **Sem loja de apps.** No iPhone ou no Android, abra o site e use "Adicionar à Tela de Início".
 - **Cada pessoa usa a própria conta da Pluggy.** O app não tem credenciais de ninguém embutidas.
 
-> **Status:** em construção. Já conecta à Pluggy (Ajustes → Bancos), guarda os lançamentos no aparelho, classifica por categorias e regras, prevê os compromissos (recorrentes e parcelados) e liga cada previsto ao lançamento do banco, sugere recorrentes a partir do extrato, mostra os parcelados do cartão, o extrato e os totais do mês, e guarda tudo num arquivo só, `box-flow.json`, trancado com senha. Abrir esse arquivo é o único jeito de importar dados; as credenciais da Pluggy também podem ser digitadas no app. Ainda sem o saldo previsto. As decisões estão em [docs/design.md](docs/design.md).
+> **Status:** em construção. Já conecta à Pluggy (Ajustes → Bancos), guarda os lançamentos no aparelho, classifica por categorias e regras, prevê os compromissos (recorrentes e parcelados) e liga cada previsto ao lançamento do banco, sugere recorrentes a partir do extrato, mostra os parcelados do cartão, o extrato e os totais do mês, o saldo previsto mês a mês (com os investimentos) e guarda tudo num arquivo só, `box-flow.json`, trancado com senha. Abrir esse arquivo é o único jeito de importar dados; as credenciais da Pluggy também podem ser digitadas no app. Ainda sem o lançamento manual rápido e as contas de pessoa. As decisões estão em [docs/design.md](docs/design.md).
 
 ## O que o MVP vai fazer
 1. **Extrato do mês** (mês do calendário) com cada lançamento classificado: categoria, valor fixo ou variável, avulso, parcelado ou recorrente, e etiquetas.
 2. **Compromissos**: recorrentes (todo dia 15, até cancelar) e parcelados (do cartão, vindos do banco, ou combinados com pessoas, lançados à mão), gerando os lançamentos previstos sozinhos.
-3. **Saldo previsto** em dois modos:
-   - **pré-pago**: só o que você já tem menos o que já está comprometido, sem contar salário futuro;
-   - **pós-pago**: o mesmo, somando as receitas previstas.
+3. **Saldo previsto** mês a mês (1, 3, 6 ou 12 meses), partindo do que você tem hoje, com ou sem os investimentos:
+   - **com receitas**: o que tem + o que vai receber − faturas e compromissos;
+   - **sem receitas**: o mesmo, sem contar nenhuma receita prevista.
 4. **Lançamento manual rápido** para o que o banco não sabe ou ainda não sincronizou, conciliado depois com a transação do banco, sempre com a sua confirmação.
 5. **Backup por arquivo**, criptografado com senha.
 
