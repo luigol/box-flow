@@ -53,6 +53,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
   const [paid, setPaid] = useState(existing?.kind === 'installment' ? String(existing.paid) : '0')
   const [bankText, setBankText] = useState(existing?.bankText ?? (fromTx ? suggestRuleText(fromTx) : ''))
   const [confirmEach, setConfirmEach] = useState(existing?.confirmEach ?? fromTx?.counterparty === 'person')
+  const [exactAmount, setExactAmount] = useState(existing?.exactAmount ?? false)
   const [picked, setPicked] = useState<BankTransaction | null>(fromTx ?? null)
   const [picking, setPicking] = useState(false)
   const [confirming, setConfirming] = useState<'end' | 'remove' | null>(null)
@@ -104,7 +105,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
     const base = {
       id: existing?.id ?? `k:${crypto.randomUUID()}`,
       name: name.trim(),
-      direction: kind === 'installment' ? ('out' as const) : direction,
+      direction,
       amount,
       amountMode: kind === 'installment' ? ('fixed' as const) : amountMode,
       day: dayNumber,
@@ -112,6 +113,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
       ...(categoryId ? { categoryId } : {}),
       ...(accountId ? { accountId } : {}),
       ...(bankText.trim() ? { bankText: bankText.trim() } : {}),
+      ...(bankText.trim() && exactAmount ? { exactAmount: true } : {}),
       ...(existing?.source ? { source: existing.source } : {}),
     }
     // Vinculado ao extrato: liga também o histórico dos últimos 12 meses (decisão Q13).
@@ -131,7 +133,15 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
             ...(historyFrom ? { historyFrom } : {}),
             ...(existing?.kind === 'recurring' && existing.end ? { end: existing.end } : {}),
           }
-        : { ...base, kind, person: person.trim(), total: totalNumber, paid: paidNumber }
+        : {
+            ...base,
+            kind,
+            person: person.trim(),
+            total: totalNumber,
+            paid: paidNumber,
+            // Receita parcelada segue a opção; o parcelado de saída (com pessoa) é sempre confirmado.
+            ...(direction === 'in' && confirmEach ? { confirmEach } : {}),
+          }
     await saveCommitment(next)
     // O lançamento escolhido fica ligado à ocorrência mais próxima, mesmo que o texto seja editado.
     if (picked) {
@@ -172,18 +182,16 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
             ]}
           />
         )}
-        {kind === 'recurring' && (
-          <Segmented
-            value={direction}
-            onChange={(v) => setDirection(v)}
-            options={[
-              ['out', t('commitmentForm.out')],
-              ['in', t('commitmentForm.in')],
-            ]}
-          />
-        )}
+        <Segmented
+          value={direction}
+          onChange={(v) => setDirection(v)}
+          options={[
+            ['out', t('commitmentForm.out')],
+            ['in', t('commitmentForm.in')],
+          ]}
+        />
         {kind === 'installment' && (
-          <Label text={t('commitmentForm.person')}>
+          <Label text={direction === 'in' ? t('commitmentForm.payer') : t('commitmentForm.person')}>
             <input value={person} onChange={(e) => setPerson(e.target.value)} className={field} />
           </Label>
         )}
@@ -191,7 +199,13 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={kind === 'installment' ? t('commitmentForm.reasonPlaceholder') : t('commitmentForm.namePlaceholder')}
+            placeholder={
+              kind === 'recurring'
+                ? t('commitmentForm.namePlaceholder')
+                : direction === 'in'
+                  ? t('commitmentForm.incomeReasonPlaceholder')
+                  : t('commitmentForm.reasonPlaceholder')
+            }
             className={`${field} placeholder:text-ink-2`}
           />
         </Label>
@@ -250,7 +264,7 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
             <Label text={t('commitmentForm.total')} className="flex-1">
               <input inputMode="numeric" value={total} onChange={(e) => setTotal(e.target.value.replace(/\D/g, ''))} className={field} />
             </Label>
-            <Label text={t('commitmentForm.paid')} className="flex-1">
+            <Label text={direction === 'in' ? t('commitmentForm.received') : t('commitmentForm.paid')} className="flex-1">
               <input inputMode="numeric" value={paid} onChange={(e) => setPaid(e.target.value.replace(/\D/g, ''))} className={field} />
             </Label>
           </div>
@@ -290,12 +304,21 @@ export function CommitmentSheet({ commitment, fromTx, fromCategoryId, fromAmount
               <span className="mt-1 block">{t('link.bankTextHint')}</span>
             </label>
           )}
-          {kind === 'recurring' && (picked || bankText) && (
+          {(kind === 'recurring' || direction === 'in') && (picked || bankText) && (
             <label className="mt-3 flex items-start gap-3 text-[15px]">
               <input type="checkbox" checked={confirmEach} onChange={(e) => setConfirmEach(e.target.checked)} className="mt-1 size-4 accent-[var(--accent)]" />
               <span>
                 {t('link.confirmEach')}
                 <span className="block text-[13px] tracking-normal text-ink-2">{t('link.confirmEachHint')}</span>
+              </span>
+            </label>
+          )}
+          {(picked || bankText) && (
+            <label className="mt-3 flex items-start gap-3 text-[15px]">
+              <input type="checkbox" checked={exactAmount} onChange={(e) => setExactAmount(e.target.checked)} className="mt-1 size-4 accent-[var(--accent)]" />
+              <span>
+                {t('link.exactAmount')}
+                <span className="block text-[13px] tracking-normal text-ink-2">{t('link.exactAmountHint')}</span>
               </span>
             </label>
           )}

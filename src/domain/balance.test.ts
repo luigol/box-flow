@@ -25,12 +25,12 @@ describe('balance: saldo previsto mês a mês (docs/design.md, "Aba Saldo")', ()
   it('saldo atual = contas + investimentos; o mês desconta os compromissos de saída que ainda vão acontecer', () => {
     const result = balance(input({
       investments: [{ id: 'cdb', itemId: 'item1', name: 'CDB', balance: 50_000 }],
-      occurrences: [occ('academia:2026-11', '2026-11-25', -12_000)],
+      occurrences: [occ('academia:2026-11', '2026-11-25', -11_350)],
     }))
 
     expect(result.current).toBe(150_000)
     expect(result.months.map((m) => [m.month, m.committed, m.end.withIncome, m.end.withoutIncome])).toEqual([
-      [{ year: 2026, month: 11 }, 12_000, 138_000, 138_000],
+      [{ year: 2026, month: 11 }, 11_350, 138_650, 138_650],
     ])
   })
 
@@ -80,7 +80,7 @@ describe('balance: saldo previsto mês a mês (docs/design.md, "Aba Saldo")', ()
         occ('contador:2026-10', '2026-10-15', -18_900, { status: 'late' }),
         occ('salario:2026-10', '2026-10-05', 500_000, { status: 'late' }),
         occ('condominio:2026-11', '2026-11-10', -70_000, { status: 'late', suggestions: ['pix'] }),
-        occ('academia:2026-11', '2026-11-05', -12_000, { status: 'realized', txIds: ['t1'] }),
+        occ('academia:2026-11', '2026-11-05', -11_350, { status: 'realized', txIds: ['t1'] }),
         occ('seguro:2026-11', '2026-11-08', -30_000, { status: 'skipped' }),
       ],
     }))
@@ -114,9 +114,9 @@ describe('balance: saldo previsto mês a mês (docs/design.md, "Aba Saldo")', ()
     const result = balance(input({
       includeInvestments: false,
       investments: [{ id: 'cdb', itemId: 'item1', name: 'CDB', balance: 50_000 }],
-      occurrences: [occ('academia:2026-11', '2026-11-25', -12_000)],
+      occurrences: [occ('academia:2026-11', '2026-11-25', -11_350)],
     }))
 
-    expect([result.current, result.months[0]?.end.withIncome]).toEqual([100_000, 88_000])
+    expect([result.current, result.months[0]?.end.withIncome]).toEqual([100_000, 88_650])
   })
 })

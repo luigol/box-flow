@@ -51,22 +51,38 @@ export function reconcile(input: ReconcileInput): { occurrences: ReconciledOccur
     linksPerTx.set(link.txId, (linksPerTx.get(link.txId) ?? 0) + 1)
   }
 
-  for (const commitment of input.commitments) {
-    const confirmEach = commitment.kind === 'installment' || commitment.confirmEach === true
-    const unlinked = new Set(input.unlinks.filter((u) => u.commitmentId === commitment.id).map((u) => u.txId))
-    const realizedHistory: Cents[] = []
-    // Histórico: gera também os meses desde `historyFrom`; antes do início, só entram os que tiveram pagamento.
+  const unlinkedOf = (commitment: Commitment) => new Set(input.unlinks.filter((u) => u.commitmentId === commitment.id).map((u) => u.txId))
+  // Histórico: gera também os meses desde `historyFrom`; antes do início, só entram os que tiveram pagamento.
+  const scheduleOf = (commitment: Commitment) => {
     const history = commitment.kind === 'recurring' && commitment.historyFrom ? commitment.historyFrom : undefined
+    return occurrences(history ? { ...commitment, start: history } : commitment, { until: input.until, bills: input.bills })
+  }
+
+  // "O valor precisa bater": o lançamento que casou pelo valor sai dos compromissos sem essa opção (o mais específico vence).
+  const claimed = new Set<string>()
+  for (const commitment of input.commitments.filter((c) => c.exactAmount)) {
+    const unlinked = unlinkedOf(commitment)
+    for (const scheduled of scheduleOf(commitment)) {
+      for (const tx of input.transactions) if (!unlinked.has(tx.id) && textMatches(commitment, scheduled, tx)) claimed.add(tx.id)
+    }
+  }
+
+  for (const commitment of input.commitments) {
+    // Parcelado com pessoa (saída) é sempre confirmado: o mesmo Pix pode pagar várias coisas. Receita parcelada segue a opção.
+    const confirmEach = (commitment.kind === 'installment' && commitment.direction === 'out') || commitment.confirmEach === true
+    const unlinked = unlinkedOf(commitment)
+    const realizedHistory: Cents[] = []
     const startKey = `${commitment.id}:${commitment.start.year}-${String(commitment.start.month).padStart(2, '0')}`
-    const schedule = occurrences(history ? { ...commitment, start: history } : commitment, { until: input.until, bills: input.bills })
-    for (const scheduled of schedule) {
+    for (const scheduled of scheduleOf(commitment)) {
       const beforeStart = scheduled.key < startKey
       // Valor pela média dos últimos 3 meses realizados (opção do usuário); antes disso, o valor informado.
       const occurrence =
         commitment.amountMode === 'average' && realizedHistory.length >= 3
           ? { ...scheduled, amount: Math.round(realizedHistory.slice(-3).reduce((s, v) => s + v, 0) / 3) }
           : scheduled
-      const candidates = input.transactions.filter((tx) => !unlinked.has(tx.id) && textMatches(commitment, occurrence, tx))
+      const candidates = input.transactions.filter(
+        (tx) => !unlinked.has(tx.id) && (commitment.exactAmount || !claimed.has(tx.id)) && textMatches(commitment, occurrence, tx),
+      )
       const confirmed = (linkedByOccurrence.get(occurrence.key) ?? []).flatMap((id) => txById.get(id) ?? [])
       const matched = unique([...confirmed, ...(confirmEach ? [] : candidates)])
       // Um lançamento ligado a vários previstos (o Pix que paga duas coisas) conta, em cada um, o valor esperado.
@@ -96,6 +112,7 @@ function textMatches(commitment: Commitment, occurrence: Occurrence, tx: BankTra
   if (!commitment.bankText || !searchText(tx).includes(normalize(commitment.bankText))) return false
   if (commitment.accountId && tx.accountId !== commitment.accountId) return false
   if ((commitment.direction === 'out') !== tx.amount < 0) return false
+  if (commitment.exactAmount && Math.abs(tx.amount) !== commitment.amount) return false
   return Math.abs(daysBetween(tx.date, occurrence.chargeDate)) <= WINDOW_DAYS
 }
 

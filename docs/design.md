@@ -73,7 +73,7 @@ Parcelados e recorrentes são compromissos que **geram lançamentos previstos**.
 **Tipos**
 - **Recorrente** (mensal ou anual), de saída ou de entrada (ex.: salário): categoria, valor, dia, conta e, opcional, o texto do banco que o identifica.
 - **Parcelado com pessoa**: pessoa, motivo e categoria, valor da parcela, total de parcelas, quantas já foram pagas e dia do mês. Cada parcela paga é gasto na categoria (o mês é quando o dinheiro sai); "quanto devo a cada pessoa" é a soma das parcelas que faltam.
-- **Receita parcelada** (grill do saldo, 19/11/2026): o parcelado também serve para entrada com prazo (ex.: um contrato de 2 meses). Quem paga, valor que chega, total de parcelas, quantas já foram recebidas e o dia. Aparece em Receitas, com a parcela ("1 de 2").
+- **Receita parcelada** (grill do saldo, 19/11/2026): o parcelado também serve para entrada com prazo (ex.: um contrato de 2 meses). Quem paga, valor que chega, total de parcelas, quantas já foram recebidas e o dia. Aparece em Receitas, com a parcela ("1 de 2"). Diferente do parcelado de saída, não é sempre confirmada: com o texto do banco, realiza sozinha, a não ser que se marque "confirmar a cada mês".
 - **Parcelado do cartão**: reconhecido sozinho a partir do banco (descrição sem "NN/NN" + total de parcelas + data da compra), só para consulta, com andamento e quanto falta. Não gera previstos: o banco já manda as parcelas futuras (conferido em 17/11/2026 em cartões de dois bancos: todas as parcelas futuras chegam como pendentes, cada uma com o mês da fatura prevista).
 
 **Valor previsto**

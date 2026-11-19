@@ -33,8 +33,9 @@ export function Commitments() {
       .filter((o) => o.commitmentId === c.id && (o.status === 'pending' || o.status === 'late'))
       .sort((a, b) => a.date.localeCompare(b.date))
   const recurringOut = (commitments ?? []).filter((c) => c.kind === 'recurring' && c.direction === 'out')
-  const recurringIn = (commitments ?? []).filter((c) => c.kind === 'recurring' && c.direction === 'in')
-  const installments = (commitments ?? []).filter((c) => c.kind === 'installment')
+  // Receitas: as recorrentes e as parceladas (com prazo).
+  const recurringIn = (commitments ?? []).filter((c) => c.direction === 'in')
+  const installments = (commitments ?? []).filter((c) => c.kind === 'installment' && c.direction === 'out')
   const suggestions = discovery?.suggestions ?? []
   const cardInstallments = discovery?.installments ?? []
   const accountName = (id: string) => {

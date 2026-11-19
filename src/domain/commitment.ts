@@ -24,6 +24,11 @@ interface CommitmentBase {
    * pagar várias coisas). Parcelado com pessoa é sempre assim.
    */
   confirmEach?: boolean
+  /**
+   * "O valor precisa bater": só o lançamento com exatamente `amount` realiza o previsto. Serve para duas
+   * receitas que chegam com o mesmo texto; o lançamento que casou pelo valor sai dos outros (o mais específico vence).
+   */
+  exactAmount?: boolean
   /** Dia do mês em que cai (ou em que é cobrado, no cartão). */
   day: number
   /** Mês da primeira ocorrência. */

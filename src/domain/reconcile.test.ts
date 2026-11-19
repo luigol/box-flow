@@ -77,6 +77,38 @@ describe('reconcile: situação de cada previsto', () => {
     expect({ status: december?.status, realized: december?.realized }).toEqual({ status: 'realized', realized: 353_000 })
   })
 
+  it('"o valor precisa bater": só o lançamento com exatamente o valor do compromisso o realiza', () => {
+    const contract = subscription({ id: 'contrato', direction: 'in', amount: 125_500, day: 2, bankText: 'Pix recebido EMPRESA EXEMPLO', exactAmount: true })
+    const pix = (id: string, amount: number) => tx(id, '2026-12-02', { description: 'Pix recebido EMPRESA EXEMPLO LTDA', amount })
+
+    const result = reconcile(input({ commitments: [contract], transactions: [pix('outro', 160_500), pix('certo', 125_500)] }))
+
+    expect(result.occurrences.find((o) => o.key === 'contrato:2026-12')?.txIds).toEqual(['certo'])
+  })
+
+  it('o mais específico vence: o Pix que casou pelo valor sai do compromisso sem valor que tem o mesmo texto', () => {
+    const text = 'Pix recebido EMPRESA EXEMPLO'
+    const salary = subscription({ id: 'sal', direction: 'in', amount: 300_000, day: 2, bankText: text })
+    const contract = subscription({ id: 'contrato', direction: 'in', amount: 125_500, day: 2, bankText: text, exactAmount: true })
+    const pix = (id: string, amount: number) => tx(id, '2026-12-02', { description: `${text} LTDA`, amount })
+
+    const result = reconcile(input({ commitments: [salary, contract], transactions: [pix('a', 160_500), pix('b', 125_500), pix('c', 145_000)] }))
+    const december = (id: string) => result.occurrences.find((o) => o.key === `${id}:2026-12`)
+
+    expect([december('sal')?.txIds, december('sal')?.realized, december('contrato')?.txIds]).toEqual([['a', 'c'], 305_500, ['b']])
+  })
+
+  it('receita parcelada com o texto do banco realiza sozinha; só o parcelado de saída (com pessoa) é sempre confirmado', () => {
+    const contract: Commitment = {
+      id: 'contrato', kind: 'installment', name: 'Contrato', person: 'Empresa', direction: 'in', amount: 125_500, amountMode: 'fixed',
+      day: 2, start: { year: 2026, month: 12 }, total: 2, paid: 0, bankText: 'Pix recebido EMPRESA EXEMPLO',
+    }
+
+    const result = reconcile(input({ commitments: [contract], transactions: [tx('pix', '2026-12-02', { description: 'Pix recebido EMPRESA EXEMPLO LTDA', amount: 125_500 })] }))
+
+    expect(result.occurrences.find((o) => o.key === 'contrato:2026-12')?.status).toBe('realized')
+  })
+
   it('compra pendente no cartão já conta como realizada', () => {
     const result = reconcile(input({ commitments: [subscription()], transactions: [tx('pend', '2026-12-15', { status: 'pending' })] }))
 
